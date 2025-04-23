@@ -46,7 +46,7 @@ public class MainApp extends Application {
                     BufferedImage imageOriginale = ImageIO.read(fichier);
 
                     // Redimensionner l'image à 256x256 
-                    // BLALBLA TEST
+                    // BLALBLA TEST 21
                     BufferedImage imageRedimensionnee = Convert.redimensionnerImage256x256(imageOriginale);
                     
                     vueOriginale.setImage(SwingFXUtils.toFXImage(imageRedimensionnee, null));
