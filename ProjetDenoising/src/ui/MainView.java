@@ -46,11 +46,14 @@ public class MainView {
             }
         });
 
+        noiseSlider.setSnapToTicks(true);
         noiseSlider.setShowTickLabels(true);
         noiseSlider.setShowTickMarks(true);
-        noiseSlider.setMajorTickUnit(25);
-        noiseSlider.setMinorTickCount(5);
-        noiseSlider.setBlockIncrement(5);
+        noiseSlider.setMin(0);
+        noiseSlider.setValue(10); // Valeur par defaut
+        noiseSlider.setMax(30);
+        noiseSlider.setMajorTickUnit(10);
+        noiseSlider.setMinorTickCount(0);
         noiseSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (onNoiseChanged != null) {
                 onNoiseChanged.accept(newVal.doubleValue());
