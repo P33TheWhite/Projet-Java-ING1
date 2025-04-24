@@ -1,6 +1,7 @@
 # Projet Java ING1 - Débruitage d'image par ACP
 
 Ce projet implémente une application de débruitage d'images utilisant l'Analyse en Composantes Principales (ACP).
+
 L'application permet à l'utilisateur de charger une image, d'y appliquer du bruit ou alors de la débruiter.
 
 ## Caractéristiques
