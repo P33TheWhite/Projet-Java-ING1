@@ -1,4 +1,4 @@
-package projetdenoising.util;
+package util;
 
 public class ImageUtils {
 

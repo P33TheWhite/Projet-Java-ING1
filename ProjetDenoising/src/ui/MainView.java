@@ -1,4 +1,4 @@
-package projetdenoising.ui;
+package ui;
 
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;

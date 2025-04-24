@@ -1,4 +1,4 @@
-package projetdenoising.model;
+package model;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;

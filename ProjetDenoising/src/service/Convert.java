@@ -1,10 +1,10 @@
-package projetdenoising.service;
+package service;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.RenderingHints;
 import javax.imageio.ImageIO;
 
-import projetdenoising.model.Pixel;
+import model.Pixel;
 
 import java.awt.image.BufferedImage;
 import java.io.File;

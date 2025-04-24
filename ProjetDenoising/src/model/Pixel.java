@@ -1,4 +1,4 @@
-package projetdenoising.model;
+package model;
 
 public class Pixel {
     private int rouge;

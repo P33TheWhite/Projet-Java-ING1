@@ -1,4 +1,4 @@
-package projetdenoising.model;
+package model;
 
 import java.awt.Image;
 

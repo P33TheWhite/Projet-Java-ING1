@@ -1,4 +1,4 @@
-package projetdenoising.service;
+package service;
 
 public class ReconstructeurPatch {
 

@@ -1,8 +1,8 @@
-package projetdenoising.service;
+package service;
 
 import java.util.Random;
 
-import projetdenoising.model.Pixel;
+import model.Pixel;
 
 public class Bruit {
     private double sigma;

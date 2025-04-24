@@ -1,9 +1,9 @@
-package projetdenoising.ui;
+package ui;
 
 import javafx.stage.Stage;
-import projetdenoising.model.Pixel;
-import projetdenoising.service.Bruit;
-import projetdenoising.service.Convert;
+import model.Pixel;
+import service.Bruit;
+import service.Convert;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
