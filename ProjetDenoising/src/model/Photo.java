@@ -1,5 +1,6 @@
 package model;
 
+import service.Convert;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -24,7 +25,7 @@ public class Photo {
 
         this.largeur = bufferedImage.getWidth();
         this.hauteur = bufferedImage.getHeight();
-        this.matrice = convertirImageEnMatrice(fileName);
+        this.matrice = Convert.convertirImageEnMatrice(this);
     }
 
     // Nouveau constructeur utilisé Denoising controller avec BufferedImage déjà chargé
@@ -62,18 +63,4 @@ public class Photo {
         return variance;
     }
 
-    private Pixel[][] convertirImageEnMatrice(String cheminImage) throws IOException {
-        BufferedImage bufferedImage = ImageIO.read(new File(cheminImage));
-        int width = bufferedImage.getWidth();
-        int height = bufferedImage.getHeight();
-        Pixel[][] matrice = new Pixel[height][width];
-
-        for (int i = 0; i < height; i++) {
-            for (int j = 0; j < width; j++) {
-                int rgb = bufferedImage.getRGB(j, i);
-                matrice[i][j] = Pixel.fromRGB(rgb);
-            }
-        }
-        return matrice;
-    }
 }

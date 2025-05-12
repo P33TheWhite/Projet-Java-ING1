@@ -1,19 +1,14 @@
 package service;
-import java.awt.Graphics2D;
-import java.awt.Image;
-import java.awt.RenderingHints;
-import javax.imageio.ImageIO;
 
 import model.Pixel;
+import model.Photo;
 
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
 
 public class Convert {
 
-    public static Pixel[][] convertirImageEnMatrice(String cheminImage) throws IOException {
-        BufferedImage image = ImageIO.read(new File(cheminImage));
+    public static Pixel[][] convertirImageEnMatrice(Photo photo) {
+        BufferedImage image = photo.getImage(); 
         int largeur = image.getWidth();
         int hauteur = image.getHeight();
         Pixel[][] matrice = new Pixel[hauteur][largeur];
@@ -22,7 +17,6 @@ public class Convert {
             for (int j = 0; j < largeur; j++) {
                 int rgb = image.getRGB(j, i);
                 matrice[i][j] = Pixel.fromRGB(rgb);
-                //commentaire
             }
         }
         return matrice;
