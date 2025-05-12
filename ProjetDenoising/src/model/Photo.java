@@ -14,6 +14,7 @@ public class Photo {
     private Pixel[][] matrice;
     private int variance;
 
+    // Constructeur utilisé lors de l'ouverture d'une image depuis un chemin
     public Photo(String fileName, String nom) throws IOException {
         this.fileName = fileName;
         this.nom = nom;
@@ -24,6 +25,17 @@ public class Photo {
         this.largeur = bufferedImage.getWidth();
         this.hauteur = bufferedImage.getHeight();
         this.matrice = convertirImageEnMatrice(fileName);
+    }
+
+    // Nouveau constructeur utilisé Denoising controller avec BufferedImage déjà chargé
+    public Photo(BufferedImage image, int largeur, int hauteur) {
+        this.bufferedImage = image;
+        this.largeur = largeur;
+        this.hauteur = hauteur;
+        this.nom = "image découpée";
+        this.fileName = null;
+        this.matrice = null;
+        this.variance = 0;
     }
 
     public BufferedImage getImage() {
