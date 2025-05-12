@@ -22,6 +22,7 @@ public class Convert {
             for (int j = 0; j < largeur; j++) {
                 int rgb = image.getRGB(j, i);
                 matrice[i][j] = Pixel.fromRGB(rgb);
+                //commentaire
             }
         }
         return matrice;
