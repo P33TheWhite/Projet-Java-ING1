@@ -1,0 +1,289 @@
+@startuml DenoisingProjectUML
+
+' Notes générales
+note top of MainApp
+  Classe principale qui lance l'application
+  - start() initialise la vue principale
+  - main() point d'entrée du programme
+end note
+
+note top of DenoisingController
+  Contrôleur principal qui gère:
+  - La sélection d'image (handleImageSelection)
+  - L'application du bruit (updateNoisyImage)
+  - La sauvegarde (saveNoisyImage)
+  Utilise MainView pour l'affichage
+end note
+
+note top of Seuillage
+  Contient les méthodes statiques de seuillage:
+  - SeuillageDur/Doux: méthodes de traitement
+  - SeuilV/SeuilB: calculs de valeurs seuil
+  Toutes méthodes soulignées car statiques
+end note
+
+note top of MainView
+  Vue principale avec:
+  - Affichage des images originale/bruitée
+  - Slider pour régler le bruit
+  - Bouton de sauvegarde
+  Communication avec le contrôleur via Consumers
+end note
+
+note top of Bruit
+  Générateur de bruit gaussien
+  - sigma: intensité du bruit
+  - noising(): applique le bruit à une Photo
+end note
+
+note top of Convert
+  Utilitaire de conversion statique:
+  - Image <-> Matrice de Pixels
+  Utilisé par Photo et Patch
+end note
+
+note top of Photo
+  Représente une image avec:
+  - Métadonnées (nom, dimensions)
+  - Matrice de Pixels sous-jacente
+  - Variance pour calculs statistiques
+  Hérite implicitement de la notion d'Image
+end note
+
+note top of Pixel
+  Composant élémentaire d'une Photo
+  - Stocke les valeurs RVB (privées)
+  - Accesseurs pour chaque canal
+  Note: Pas d'héritage, composition pure
+end note
+
+note top of Patch
+  Sous-partie d'une Photo avec:
+  - Position du pixel de départ
+  - Taille s (carré s×s)
+  - Indicateur de superposition
+  Relation forte avec Photo (composition)
+end note
+
+note top of ExtracteurPatch
+  Découpe une Photo en Patchs:
+  - ExtractPatchs: extraction avec taille s
+  - DecoupeImage: découpe avec recouvrement
+  Utilise Photo comme entrée
+end note
+
+note top of VecteurPatch
+  Transforme des Patchs en vecteurs:
+  - VectorPatchs: conversion pour ACP
+  Préparation des données pour l'analyse
+end note
+
+note top of ACP
+  Analyse en Composantes Principales:
+  - Stocke vecteur moyen et base
+  - Méthodes de calcul statistique
+  Traite les vecteurs de VecteurPatch
+end note
+
+note top of Projecteur
+  Projection dans l'espace ACP:
+  - Proj(): projection U->V
+  Utilise les vecteurs de l'ACP
+end note
+
+note top of ReconstructeurPatch
+  Reconstruit une Photo à partir:
+  - Des Patchs traités
+  - Position (l,c) dans l'image
+  Opération inverse de ExtracteurPatch
+end note
+
+note top of QualiteImage
+  Mesures de qualité:
+  - MSE: erreur quadratique moyenne
+  - PSNR: rapport signal/bruit
+  Compare matrices de Pixels
+end note
+
+' Diagramme de classes
+class MainApp {
+  +start(Stage): void
+  +main(String[]): void
+}
+
+class DenoisingController {
+  -view: MainView
+  -matriceOriginale: Pixel[][]
+  -imageBruitee: BufferedImage
+  +DenoisingController(Stage)
+  +initialize(): void
+  -handleImageSelection(File): void
+  -updateNoisyImage(double): void
+  -saveNoisyImage(File): void
+}
+
+class Seuillage {
+  +{static}SeuillageDur(lambda:double, alphai:double): double
+  +{static}SeuillageDoux(lambda:double, alphai:double): double
+  +{static}SeuilV(v:int, L:int): double
+  +{static}SeuilB(v:int, ecartType:double): double
+}
+
+class MainView {
+  -stage: Stage
+  -originalView: ImageView
+  -noisyView: ImageView
+  -noiseSlider: Slider
+  -saveButton: Button
+  -onImageSelected: Consumer<File>
+  -onNoiseChanged: Consumer<Double>
+  -onSaveRequested: Consumer<File>
+  +MainView(Stage)
+  +show(): void
+  +setOnImageSelected(Consumer<File>): void
+  +setOnNoiseChanged(Consumer<Double>): void
+  +setOnSaveRequested(Consumer<File>): void
+  +setOriginalImage(BufferedImage): void
+  +setNoisyImage(BufferedImage): void
+  +getNoiseLevel(): double
+  +enableSave(boolean): void
+}
+
+class Bruit {
+  -sigma: double
+  +Bruit()
+  +noising(img:Photo, sigma:double): Image
+}
+
+class Convert {
+  +{static}ImageToMatrice(img:Image): Pixel[][]
+  +{static}MatriceToImage(matrice:Pixel[][]): Image
+}
+
+class Photo {
+  -fileName: String
+  -image: Image
+  -largeur: int
+  -hauteur: int
+  -nom: String
+  -matrice: Pixel[][]
+  -variance: int
+  +Photo(fileName:String)
+  +getImage(): Image
+  +getLargeur(): int
+  +getHauteur(): int
+  +getNom(): String
+  +getMatrice(): Pixel[][]
+  +getVariance(): int
+}
+
+class Pixel {
+  -rouge: int
+  -vert: int
+  -bleu: int
+  +Pixel()
+  +getRouge(): int
+  +getVert(): int
+  +getBleu(): int
+}
+
+class Patch {
+  -image: Image
+  -matrice: Pixel[][]
+  -s: int
+  -superposé: boolean
+  -premierPixelPos: int[]
+  +Patch()
+  +getImage(): Image
+  +getMatrice(): Pixel[][]
+  +getS(): int
+  +getPos(): int[]
+}
+
+class ExtracteurPatch {
+  +ExtractPatchs(Xb:Photo, s:int): ArrayList<Patch>
+  +DecoupeImage(X:Photo, W:int, n:int): ArrayList<Patch>
+}
+
+class VecteurPatch {
+  +VectorPatchs(Ypatchs:ArrayList<Patch>): ArrayList<Vector>
+}
+
+class Vector {
+  -matrice: Pixel[]
+  -s2: int
+  -premierPixelPos: int[]
+  +Vector(matrice:Pixel[], s2:int, premierPixelPos:int[])
+  +getMatrice(): Pixel[][]
+  +getS2(): int
+  +getPosition(): int[]
+}
+
+class ACP {
+  -VecteurMoyen: double[]
+  -baseComposantesPrincipales: double[][]
+  -ValeursPropresCovariance: double[]
+  +ACP(patchsVectorises:List<double[]>)
+  +getVecteurMoyen(): double[]
+  +getBaseComposantesPrincipales(): double[]
+  +getValeursPropresCovariance(): double[]
+  +estimerEcartTypeSignalBayes(projectionsACP:List<double[]>, varianceBruit:double): double
+  +MoyCov(V:double[][]): Map<String,Object>
+  +CalculerVecteurMoyen(vecteurs:List<double[]>): double[]
+  +CentrerPatchs(vecteurs:List<double[]>, moyenne:double[]): double[][]
+  +CalculerMatriceCov(PatchsCentres:double[][]): double[][]
+  +extraireVecteursPropres(covariance:double[][]): double[][]
+}
+
+class Projecteur {
+  +Proj(U:ArrayList<Vector>, V:ArrayList<Vector>): ArrayList<Vector>
+}
+
+class ReconstructeurPatch {
+  +ReconstructPatch(Ypatch:ArrayList<Patch>, l:int, c:int): Photo
+}
+
+class QualiteImage {
+  +MSE(matX:Pixel[][], matY:Pixel[][], s:int): double
+  +PSNR(mse:double): double
+}
+
+' Relations entre classes
+MainApp --> DenoisingController
+DenoisingController --> MainView
+DenoisingController --> Bruit
+DenoisingController --> Photo
+
+MainView --> Photo
+
+Photo "1" *-- "*" Pixel: Composition
+Photo --> Convert: Utilise
+Patch --> Convert: Utilise
+
+Bruit --> Photo: Traite
+
+ExtracteurPatch --> Photo: Découpe
+ExtracteurPatch --> Patch: Crée
+
+Patch --> Vector: Peut devenir
+VecteurPatch --> Patch: Transforme
+VecteurPatch --> Vector: Produit
+
+ACP --> Vector: Analyse
+Projecteur --> Vector: Utilise
+
+ReconstructeurPatch --> Patch: Reconstruit
+ReconstructeurPatch --> Photo: Produit
+
+QualiteImage --> Photo: Évalue
+QualiteImage --> Pixel: Utilise
+
+Seuillage --> QualiteImage: Utilisé pour
+
+' Style pour méthodes statiques
+skinparam class {
+  StaticFontColor #blue
+  StaticFontStyle underline
+}
+
+@enduml
