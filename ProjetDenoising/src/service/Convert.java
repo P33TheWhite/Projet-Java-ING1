@@ -40,25 +40,4 @@ public class Convert {
         }
         return image;
     }
-
-    // Fonction pour redimensionner une image à une taille spécifique
-    public static BufferedImage redimensionnerImage(BufferedImage image, int largeur, int hauteur) {
-        Image imgRedimensionnee = image.getScaledInstance(largeur, hauteur, Image.SCALE_SMOOTH);
-
-        // Créer un nouveau BufferedImage pour contenir l'image redimensionnée
-        BufferedImage imageRedimensionnee = new BufferedImage(largeur, hauteur, BufferedImage.TYPE_INT_RGB);
-
-        // Dessiner l'image redimensionnée sur le nouveau BufferedImage
-        Graphics2D g2d = imageRedimensionnee.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2d.drawImage(imgRedimensionnee, 0, 0, null);
-        g2d.dispose();
-
-        return imageRedimensionnee;
-    }
-
-    // Fonction pour redimensionner l'image à 256x256
-    public static BufferedImage redimensionnerImage256x256(BufferedImage image) {
-        return redimensionnerImage(image, 256, 256);
-    }
 }
