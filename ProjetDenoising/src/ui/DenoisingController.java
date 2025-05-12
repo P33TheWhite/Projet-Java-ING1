@@ -30,9 +30,8 @@ public class DenoisingController {
     private void handleImageSelection(File file) {
         try {
             BufferedImage imageOriginale = ImageIO.read(file);
-            BufferedImage resized = Convert.redimensionnerImage256x256(imageOriginale);
             matriceOriginale = Convert.convertirImageEnMatrice(file.getAbsolutePath());
-            view.setOriginalImage(resized);
+            view.setOriginalImage(imageOriginale);
             updateNoisyImage(view.getNoiseLevel());
             view.enableSave(true);
         } catch (IOException e) {
