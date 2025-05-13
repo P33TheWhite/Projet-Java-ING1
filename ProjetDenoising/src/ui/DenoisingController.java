@@ -104,7 +104,7 @@ public class DenoisingController {
 
             int divisions = view.getNombreDivisions();
 
-            if (divisions < 1) {
+            if (divisions < 2) {
                 view.showError("Le nombre de divisions doit être ≥ 1");
                 return;
             }
