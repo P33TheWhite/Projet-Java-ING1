@@ -9,6 +9,7 @@ import service.Convert;
 import service.DecoupeImage;
 
 import javax.imageio.ImageIO;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -20,6 +21,7 @@ public class DenoisingController {
     private Pixel[][] matriceOriginale;
     private BufferedImage imageBruitee;
     private BufferedImage imageOriginale;
+    private int maxDivisions = 1;
 
     public DenoisingController(Stage stage) {
         this.view = new MainView(stage);
@@ -35,19 +37,43 @@ public class DenoisingController {
 
     private void handleImageSelection(File file) {
         try {
-            imageOriginale = ImageIO.read(file);
-            Photo photo = new Photo(file.getAbsolutePath(), file.getName());
+            BufferedImage imageChargee = ImageIO.read(file);
+
+            // Vérifie si la largeur/hauteur est divisible par 16
+            int largeur = imageChargee.getWidth();
+            int hauteur = imageChargee.getHeight();
+            int nouvelleLargeur = largeur - (largeur % 16);
+            int nouvelleHauteur = hauteur - (hauteur % 16);
+
+            if (nouvelleLargeur != largeur || nouvelleHauteur != hauteur) {
+                imageOriginale = resizeImage(imageChargee, nouvelleLargeur, nouvelleHauteur);
+                view.showError("Image redimensionnée à " + nouvelleLargeur + "x" + nouvelleHauteur +
+                               " pour correspondre à une taille divisible par 16");
+            } else {
+                imageOriginale = imageChargee;
+                view.showError("");
+            }
+
+            Photo photo = new Photo(imageOriginale, imageOriginale.getWidth(), imageOriginale.getHeight());
             matriceOriginale = Convert.convertirImageEnMatrice(photo);
             view.setOriginalImage(imageOriginale);
             updateNoisyImage(view.getNoiseLevel());
             view.enableSave(true);
             view.enableCut(true);
-            view.showError(""); 
+
+            // Calcul du nombre maximal d'imagettes
+            int maxDivisionsWidth = imageOriginale.getWidth() / 16;
+            int maxDivisionsHeight = imageOriginale.getHeight() / 16;
+            maxDivisions = maxDivisionsWidth * maxDivisionsHeight;
+
+            if (maxDivisions < 1) maxDivisions = 1;
+
         } catch (IOException e) {
             view.showError("Erreur de lecture de l'image");
             e.printStackTrace();
         }
     }
+
 
     private void updateNoisyImage(double noiseLevel) {
         if (matriceOriginale != null) {
@@ -71,43 +97,44 @@ public class DenoisingController {
 
     private void cutImage() {
         try {
-            int W = Integer.parseInt(view.getTailleImagette());
-            int n = Integer.parseInt(view.getNombreImagettes());
-            
             if (imageOriginale == null) {
                 view.showError("Aucune image chargée !");
                 return;
             }
 
-            if (W <= 0 || n <= 0) {
-                view.showError("W et n doivent être > 0");
+            int divisions = view.getNombreDivisions();
+
+            if (divisions < 1) {
+                view.showError("Le nombre de divisions doit être ≥ 1");
+                return;
+            }
+            if (divisions % 2 != 0) {
+                view.showError("Le nombre de divisions doit être pair");
                 return;
             }
 
-            int largeur = imageOriginale.getWidth();
-            int hauteur = imageOriginale.getHeight();
-
-            if (W > largeur || W > hauteur) {
-                view.showError("La taille W dépasse les dimensions de l'image (" + largeur + "x" + hauteur + ")");
+            if (divisions > maxDivisions) {
+                view.showError("Nombre de divisions trop grand (max " + maxDivisions + ")");
                 return;
             }
 
-            int maxImagettes = (largeur / W) * (hauteur / W);
-            if (n > maxImagettes) {
-                view.showError("Nombre trop élevé. Maximum possible: " + maxImagettes);
-                return;
-            }
+            Photo photo = new Photo(imageBruitee, imageOriginale.getWidth(), imageOriginale.getHeight());
+            List<Imagette> imagettes = DecoupeImage.decoupeImage(photo, divisions);
 
-            Photo photo = new Photo(imageBruitee, largeur, hauteur);
-            List<Imagette> imagettes = DecoupeImage.decoupeImage(photo, W, n);
             view.displayImagettes(imagettes);
-            view.showError("Découpe réussie : " + n + " imagettes de " + W + "x" + W);
-
-        } catch (NumberFormatException e) {
-            view.showError("Entrez des nombres valides pour W et n");
+            view.showError("Découpe réussie : " + divisions + " imagettes");
         } catch (Exception e) {
             view.showError("Erreur lors de la découpe");
             e.printStackTrace();
         }
+    }
+
+    private BufferedImage resizeImage(BufferedImage originalImage, int targetWidth, int targetHeight) {
+        BufferedImage resizedImage = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = resizedImage.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2d.drawImage(originalImage, 0, 0, targetWidth, targetHeight, null);
+        g2d.dispose();
+        return resizedImage;
     }
 }

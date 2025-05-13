@@ -11,7 +11,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
-import javafx.util.converter.IntegerStringConverter;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Pane;
 import model.Imagette;
 
 import java.awt.image.BufferedImage;
@@ -24,12 +25,12 @@ public class MainView {
     private final ImageView originalView = new ImageView();
     private final ImageView noisyView = new ImageView();
     private final Slider noiseSlider = new Slider(0, 30, 10);
+    private final TextField divisionsField = new TextField("4");
     private final Button saveButton = new Button("Enregistrer l'image bruitée");
     private final Button cutButton = new Button("Découper l'image");
-    private final TextField tailleImagetteField = new TextField("100");
-    private final TextField nombreImagettesField = new TextField("9");
     private final Label errorLabel = new Label();
     private final TilePane imagettesPane = new TilePane();
+    private final ScrollPane scrollPane = new ScrollPane();
 
     private Consumer<File> onImageSelected;
     private Consumer<Double> onNoiseChanged;
@@ -44,10 +45,6 @@ public class MainView {
     private void setupUI() {
         stage.setTitle("Découpe d'images dynamique");
 
-        // Configure les TextField pour n'accepter que des nombres
-        tailleImagetteField.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
-        nombreImagettesField.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
-
         Button selectImage = new Button("Choisir une image");
         selectImage.setOnAction(e -> {
             FileChooser chooser = new FileChooser();
@@ -59,16 +56,26 @@ public class MainView {
             }
         });
 
+        // Configuration du slider de bruit
         noiseSlider.setShowTickLabels(true);
         noiseSlider.setShowTickMarks(true);
-        noiseSlider.setMajorTickUnit(10);        // Add this
-        noiseSlider.setMinorTickCount(0);        // Optional: remove minor ticks
+        noiseSlider.setMajorTickUnit(10);
+        noiseSlider.setMinorTickCount(0);
         noiseSlider.setBlockIncrement(10);
         noiseSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (onNoiseChanged != null) {
                 onNoiseChanged.accept(newVal.doubleValue());
             }
         });
+
+        // Configuration du champ de texte pour les divisions
+        divisionsField.setPrefWidth(50);
+        divisionsField.setTextFormatter(new TextFormatter<>(change -> {
+            if (change.getControlNewText().matches("\\d*")) {
+                return change;
+            }
+            return null;
+        }));
 
         saveButton.setDisable(true);
         saveButton.setOnAction(e -> {
@@ -99,14 +106,21 @@ public class MainView {
         imagettesPane.setVgap(10);
         imagettesPane.setPadding(new Insets(10));
         imagettesPane.setPrefColumns(3);
+        
+        // Configuration du ScrollPane
+        scrollPane.setContent(imagettesPane);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setPrefViewportHeight(200);
+        scrollPane.setStyle("-fx-background: white; -fx-border-color: lightgray;");
 
         // Organisation des contrôles
-        HBox imageControls = new HBox(10, 
-                new Label("Taille (W):"), tailleImagetteField,
-                new Label("Nombre:"), nombreImagettesField,
+        HBox decoupeControls = new HBox(10, 
+                new Label("Nombre de divisions (n):"), divisionsField,
                 cutButton
         );
-        imageControls.setAlignment(Pos.CENTER_LEFT);
+        decoupeControls.setAlignment(Pos.CENTER_LEFT);
 
         HBox imageContainer = new HBox(20, originalView, noisyView);
         
@@ -115,38 +129,37 @@ public class MainView {
                 new Label("Niveau de bruit:"),
                 noiseSlider,
                 new HBox(10, saveButton),
-                imageControls,
+                decoupeControls,
                 errorLabel,
                 imageContainer,
                 new Label("Imagettes générées:"),
-                imagettesPane
+                scrollPane  // Using ScrollPane instead of TilePane directly
         );
         layout.setPadding(new Insets(15));
+        VBox.setVgrow(scrollPane, Priority.ALWAYS); // Make the ScrollPane grow vertically
 
         // Style de l'erreur
         errorLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
 
         stage.setScene(new Scene(layout, 800, 700));
-    }
+    }    
 
     public void show() {
         stage.show();
     }
 
-    // Getters pour les valeurs des champs
-    public String getTailleImagette() {
-        return tailleImagetteField.getText();
-    }
-
-    public String getNombreImagettes() {
-        return nombreImagettesField.getText();
+    public int getNombreDivisions() {
+        try {
+            return Integer.parseInt(divisionsField.getText());
+        } catch (NumberFormatException e) {
+            return 1; // Valeur par défaut si le texte n'est pas un nombre valide
+        }
     }
 
     public double getNoiseLevel() {
         return noiseSlider.getValue();
     }
 
-    // Méthodes d'affichage
     public void setOriginalImage(BufferedImage image) {
         originalView.setImage(SwingFXUtils.toFXImage(image, null));
     }
@@ -165,7 +178,6 @@ public class MainView {
         }
     }
 
-    // Gestion des événements
     public void setOnImageSelected(Consumer<File> handler) {
         this.onImageSelected = handler;
     }
@@ -182,7 +194,6 @@ public class MainView {
         this.onCutRequested = handler;
     }
 
-    // Activation des boutons
     public void enableSave(boolean enabled) {
         saveButton.setDisable(!enabled);
     }
@@ -191,7 +202,6 @@ public class MainView {
         cutButton.setDisable(!enabled);
     }
 
-    // Affichage des erreurs
     public void showError(String message) {
         errorLabel.setText(message);
     }
