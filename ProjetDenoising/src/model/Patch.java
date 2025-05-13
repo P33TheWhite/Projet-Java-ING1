@@ -7,12 +7,10 @@ public class Patch {
     private Pixel[][] matrice;
     private int s;  // Taille de la fenêtre (patch)
     private int taille;
-    private boolean superpose;
     private int[] position;
     private int[] premierPixelPos;
 
     public Patch() {
-        this.superpose = false;
         this.position = new int[2];  // Position (x, y) du patch
         this.premierPixelPos = new int[2];  // Position du premier pixel du patch
     }
@@ -55,9 +53,6 @@ public class Patch {
         this.s = s;
     }
 
-    public void setSuperpose(boolean superpose) {
-        this.superpose = superpose;
-    }
 
     public void setPosition(int[] position) {
         this.position = position;

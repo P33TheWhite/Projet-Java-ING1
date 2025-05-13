@@ -3,7 +3,8 @@ package model;
 public class Pixel {
     private int rouge;
     private int vert;
-    private int bleu;
+    private int bleu;;
+    private boolean estSuperpose;
 
     public Pixel(int rouge, int vert, int bleu) {
         this.rouge = clamp(rouge);
@@ -34,6 +35,16 @@ public class Pixel {
     public void setBleu(int bleu) {
         this.bleu = clamp(bleu);
     }
+    
+    public void setestSuperpose(boolean estSuperpose){
+    	this.estSuperpose=estSuperpose;
+    }
+    
+    public boolean getestSuperpose(){
+    	return estSuperpose;
+    }
+    
+
 
     public int toRGB() {
         return (rouge << 16) | (vert << 8) | bleu;
