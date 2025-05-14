@@ -6,6 +6,7 @@ public class Patch {
     private Image image;
     private Pixel[][] matrice;
     private int taille;
+    private int[] position;
     private int[] premierPixelPos;
 
     public Patch() {
@@ -48,5 +49,8 @@ public class Patch {
     
     public int[] getPremierPixelPos() {
     	return this.premierPixelPos;
+    }
+    public void setPosition(int[] position) {
+        this.position = position;
     }
 }

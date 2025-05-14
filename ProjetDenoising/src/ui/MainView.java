@@ -195,40 +195,50 @@ public class MainView {
         });
     }    
     
-    public void setPossiblePatchSizes(int maxSize) {
+    public void setPossiblePatchSizes(int imageWidth, int imageHeight) {
         patchSizeCombo.getItems().clear();
         patchStepCombo.getItems().clear();
-        
-        // Ajouter des tailles communes (diviseurs de 16)
-        for (int size = 4; size <= maxSize; size += 4) {
-            if (maxSize % size == 0) {
+
+        // Proposer toutes les tailles de patch qui divisent à la fois la largeur et la hauteur de l'image
+        for (int size = 4; size <= Math.min(imageWidth, imageHeight); size += 4) {
+            // Vérifier que la taille est un diviseur à la fois de la largeur et de la hauteur
+            if (imageWidth % size == 0 && imageHeight % size == 0) {
                 patchSizeCombo.getItems().add(size);
             }
         }
-        
-        // Sélectionner une taille par défaut raisonnable
+
+        // Sélectionner une taille par défaut (par exemple, la plus petite)
         if (!patchSizeCombo.getItems().isEmpty()) {
-            patchSizeCombo.getSelectionModel().select(
-                Math.min(2, patchSizeCombo.getItems().size() - 1));
+            patchSizeCombo.getSelectionModel().selectFirst();
         }
-        
-        // Configurer les pas possibles
+
+        // Mettre à jour les pas possibles pour la taille de patch sélectionnée
         updatePossibleSteps();
-        
+
+        // Mettre à jour dynamiquement les pas lorsque l'on change de taille de patch
         patchSizeCombo.getSelectionModel().selectedItemProperty().addListener(
-            (obs, oldVal, newVal) -> updatePossibleSteps());
+            (obs, oldVal, newVal) -> updatePossibleSteps()
+        );
     }
 
     private void updatePossibleSteps() {
         Integer selectedSize = patchSizeCombo.getValue();
         if (selectedSize == null) return;
-        
+
         patchStepCombo.getItems().clear();
+
+        // Permettre tous les pas allant de 1 à la taille sélectionnée
         for (int step = 1; step <= selectedSize; step++) {
-            patchStepCombo.getItems().add(step);
+            if (selectedSize % step == 0) { // Seules les tailles de pas qui sont des diviseurs de la taille de patch sont possibles
+                patchStepCombo.getItems().add(step);
+            }
         }
+
+        // Sélectionner un pas par défaut
         patchStepCombo.getSelectionModel().selectFirst();
     }
+
+
     
     public void show() {
         stage.show();

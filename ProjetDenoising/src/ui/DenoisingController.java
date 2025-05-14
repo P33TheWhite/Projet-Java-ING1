@@ -174,11 +174,9 @@ public class DenoisingController {
             
             // Calculer les tailles de patch possibles
             if (!imagettes.isEmpty()) {
-                int minDimension = Math.min(
-                    imagettes.get(0).getImage().getWidth(),
-                    imagettes.get(0).getImage().getHeight()
-                );
-                view.setPossiblePatchSizes(minDimension);
+                int width = imagettes.get(0).getImage().getWidth();
+                int height = imagettes.get(0).getImage().getHeight();
+                view.setPossiblePatchSizes(width, height);
             }
             view.displayImagettes(imagettes);
             view.showError("Découpe réussie : " + divisions + " imagettes");
