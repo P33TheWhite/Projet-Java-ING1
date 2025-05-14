@@ -176,7 +176,7 @@ public class MainView {
         );
         mainContent.setPadding(new Insets(15));
         
-        // Make the main content scrollable
+        // Rendre le contenu principal défilable
         ScrollPane mainScrollPane = new ScrollPane(mainContent);
         mainScrollPane.setFitToWidth(true);
         mainScrollPane.setFitToHeight(true);
