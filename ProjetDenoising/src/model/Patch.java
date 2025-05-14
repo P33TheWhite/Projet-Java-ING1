@@ -8,6 +8,8 @@ public class Patch {
     private int taille;
     private int[] position;
     private int[] premierPixelPos;
+    private int[] position;
+
 
     public Patch() {
         this.premierPixelPos = new int[2];  // Position du premier pixel du patch
@@ -25,12 +27,10 @@ public class Patch {
     public int getTaille() {
         return this.taille;
     }
-
-
-    public int[] getPosition() {
-        return this.premierPixelPos;
+    
+    public void setTaille(int taille) {
+        this.taille=taille;
     }
-
     // Setters pour les variables privées
     public void setImage(Image image) {
         this.image = image;
@@ -50,7 +50,18 @@ public class Patch {
     public int[] getPremierPixelPos() {
     	return this.premierPixelPos;
     }
+<<<<<<< HEAD
     public void setPosition(int[] position) {
         this.position = position;
     }
+=======
+    
+    public void setPosition(int[] position) {
+        this.position = position;
+    }
+    
+    public int[] getPosition() {
+    	return this.position;
+    }
+>>>>>>> 3625e4a2177ba1f819fed2a5688af8e41ef84277
 }

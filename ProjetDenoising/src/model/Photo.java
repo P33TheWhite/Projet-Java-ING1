@@ -38,6 +38,14 @@ public class Photo {
         this.matrice = null;
         this.variance = 0;
     }
+    public Photo(BufferedImage image, int largeur, int hauteur, Pixel[][] matrice) {
+        this.bufferedImage = image;
+        this.largeur = largeur;
+        this.hauteur = hauteur;
+        this.nom = "image reconstruite";
+        this.fileName = null;
+        this.matrice = matrice;
+    }
 
     public BufferedImage getImage() {
         return bufferedImage;
