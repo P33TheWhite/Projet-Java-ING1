@@ -26,6 +26,10 @@ public class Patch {
     public int getTaille() {
         return this.taille;
     }
+    
+    public void setTaille(int taille) {
+        this.taille=taille;
+    }
     // Setters pour les variables privées
     public void setImage(Image image) {
         this.image = image;
