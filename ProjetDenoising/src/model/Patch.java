@@ -5,13 +5,10 @@ import java.awt.Image;
 public class Patch {
     private Image image;
     private Pixel[][] matrice;
-    private int s;  // Taille de la fenêtre (patch)
     private int taille;
-    private int[] position;
     private int[] premierPixelPos;
 
     public Patch() {
-        this.position = new int[2];  // Position (x, y) du patch
         this.premierPixelPos = new int[2];  // Position du premier pixel du patch
     }
 
@@ -23,17 +20,11 @@ public class Patch {
         return this.matrice;
     }
 
-    public int getS() {
-        return this.s;
-    }
 
     public int getTaille() {
         return this.taille;
     }
 
-    public int[] getPos() {
-        return this.position;
-    }
 
     public int[] getPosition() {
         return this.premierPixelPos;
@@ -49,14 +40,7 @@ public class Patch {
         this.taille = matrice.length * matrice[0].length;
     }
 
-    public void setS(int s) {
-        this.s = s;
-    }
 
-
-    public void setPosition(int[] position) {
-        this.position = position;
-    }
 
     public void setPremierPixelPos(int[] premierPixelPos) {
         this.premierPixelPos = premierPixelPos;
