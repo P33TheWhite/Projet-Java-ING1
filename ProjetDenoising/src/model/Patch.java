@@ -45,4 +45,8 @@ public class Patch {
     public void setPremierPixelPos(int[] premierPixelPos) {
         this.premierPixelPos = premierPixelPos;
     }
+    
+    public int[] getPremierPixelPos() {
+    	return this.premierPixelPos;
+    }
 }

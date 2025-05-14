@@ -14,9 +14,11 @@ import javafx.stage.FileChooser;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Pane;
 import model.Imagette;
+import model.Patch;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -30,7 +32,13 @@ public class MainView {
     private final Button cutButton = new Button("Découper l'image");
     private final Label errorLabel = new Label();
     private final TilePane imagettesPane = new TilePane();
-    private final ScrollPane scrollPane = new ScrollPane();
+    private final ScrollPane imagettesScrollPane = new ScrollPane();
+    private final ComboBox<Integer> patchSizeCombo = new ComboBox<>();
+    private final ComboBox<Integer> patchStepCombo = new ComboBox<>();
+    private final Button extractPatchesButton = new Button("Extraire les patchs");
+    private final TilePane patchesPane = new TilePane();
+    private final ScrollPane patchesScrollPane = new ScrollPane();
+    private Runnable onExtractPatchesRequested;
 
     private Consumer<File> onImageSelected;
     private Consumer<Double> onNoiseChanged;
@@ -97,9 +105,14 @@ public class MainView {
 
         // Configuration des ImageView
         originalView.setFitWidth(300);
+        originalView.setFitHeight(300);
         originalView.setPreserveRatio(true);
+        originalView.setSmooth(true);
+        
         noisyView.setFitWidth(300);
+        noisyView.setFitHeight(300);
         noisyView.setPreserveRatio(true);
+        noisyView.setSmooth(true);
 
         // Configuration du TilePane pour les imagettes
         imagettesPane.setHgap(10);
@@ -107,13 +120,34 @@ public class MainView {
         imagettesPane.setPadding(new Insets(10));
         imagettesPane.setPrefColumns(3);
         
-        // Configuration du ScrollPane
-        scrollPane.setContent(imagettesPane);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setPrefViewportHeight(200);
-        scrollPane.setStyle("-fx-background: white; -fx-border-color: lightgray;");
+        // Configuration du ScrollPane pour les imagettes
+        imagettesScrollPane.setContent(imagettesPane);
+        imagettesScrollPane.setFitToWidth(true);
+        imagettesScrollPane.setPrefViewportHeight(200);
+        imagettesScrollPane.setStyle("-fx-background: white; -fx-border-color: lightgray;");
+
+        // Configuration des contrôles de patch
+        patchSizeCombo.setPrefWidth(100);
+        patchStepCombo.setPrefWidth(100);
+        
+        HBox patchControls = new HBox(10,
+            new Label("Taille de patch:"), patchSizeCombo,
+            new Label("Pas:"), patchStepCombo,
+            extractPatchesButton
+        );
+        patchControls.setAlignment(Pos.CENTER_LEFT);
+        
+        // Configuration du TilePane pour les patchs
+        patchesPane.setHgap(5);
+        patchesPane.setVgap(5);
+        patchesPane.setPadding(new Insets(5));
+        patchesPane.setPrefColumns(6);
+        
+        // Configuration du ScrollPane pour les patchs
+        patchesScrollPane.setContent(patchesPane);
+        patchesScrollPane.setFitToWidth(true);
+        patchesScrollPane.setPrefViewportHeight(200);
+        patchesScrollPane.setStyle("-fx-background: white; -fx-border-color: lightgray;");
 
         // Organisation des contrôles
         HBox decoupeControls = new HBox(10, 
@@ -123,8 +157,9 @@ public class MainView {
         decoupeControls.setAlignment(Pos.CENTER_LEFT);
 
         HBox imageContainer = new HBox(20, originalView, noisyView);
+        imageContainer.setAlignment(Pos.CENTER);
         
-        VBox layout = new VBox(10,
+        VBox mainContent = new VBox(10,
                 selectImage,
                 new Label("Niveau de bruit:"),
                 noiseSlider,
@@ -133,17 +168,68 @@ public class MainView {
                 errorLabel,
                 imageContainer,
                 new Label("Imagettes générées:"),
-                scrollPane  // Using ScrollPane instead of TilePane directly
+                imagettesScrollPane,
+                new Label("Paramètres d'extraction de patchs:"),
+                patchControls,
+                new Label("Patchs extraits:"),
+                patchesScrollPane
         );
-        layout.setPadding(new Insets(15));
-        VBox.setVgrow(scrollPane, Priority.ALWAYS); // Make the ScrollPane grow vertically
-
+        mainContent.setPadding(new Insets(15));
+        
+        // Make the main content scrollable
+        ScrollPane mainScrollPane = new ScrollPane(mainContent);
+        mainScrollPane.setFitToWidth(true);
+        mainScrollPane.setFitToHeight(true);
+        mainScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        mainScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        
         // Style de l'erreur
         errorLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
 
-        stage.setScene(new Scene(layout, 800, 700));
+        stage.setScene(new Scene(mainScrollPane, 800, 700));
+        
+        extractPatchesButton.setOnAction(e -> {
+            if (onExtractPatchesRequested != null) {
+                onExtractPatchesRequested.run();
+            }
+        });
     }    
+    
+    public void setPossiblePatchSizes(int maxSize) {
+        patchSizeCombo.getItems().clear();
+        patchStepCombo.getItems().clear();
+        
+        // Ajouter des tailles communes (diviseurs de 16)
+        for (int size = 4; size <= maxSize; size += 4) {
+            if (maxSize % size == 0) {
+                patchSizeCombo.getItems().add(size);
+            }
+        }
+        
+        // Sélectionner une taille par défaut raisonnable
+        if (!patchSizeCombo.getItems().isEmpty()) {
+            patchSizeCombo.getSelectionModel().select(
+                Math.min(2, patchSizeCombo.getItems().size() - 1));
+        }
+        
+        // Configurer les pas possibles
+        updatePossibleSteps();
+        
+        patchSizeCombo.getSelectionModel().selectedItemProperty().addListener(
+            (obs, oldVal, newVal) -> updatePossibleSteps());
+    }
 
+    private void updatePossibleSteps() {
+        Integer selectedSize = patchSizeCombo.getValue();
+        if (selectedSize == null) return;
+        
+        patchStepCombo.getItems().clear();
+        for (int step = 1; step <= selectedSize; step++) {
+            patchStepCombo.getItems().add(step);
+        }
+        patchStepCombo.getSelectionModel().selectFirst();
+    }
+    
     public void show() {
         stage.show();
     }
@@ -154,6 +240,43 @@ public class MainView {
         } catch (NumberFormatException e) {
             return 1; // Valeur par défaut si le texte n'est pas un nombre valide
         }
+    }
+    
+    public int getPatchSize() {
+        return patchSizeCombo.getValue() != null ? 
+               patchSizeCombo.getValue() : 8;
+    }
+    
+    public int getPatchStep() {
+        return patchStepCombo.getValue() != null ? 
+               patchStepCombo.getValue() : 4;
+    }
+    
+    public void displayPatches(List<ArrayList<ArrayList<Patch>>> allPatches) {
+        patchesPane.getChildren().clear();
+
+        for (List<ArrayList<Patch>> imagettePatches : allPatches) {
+            for (ArrayList<Patch> patchList : imagettePatches) {
+                for (Patch patch : patchList) {
+                    ImageView iv = new ImageView(
+                        SwingFXUtils.toFXImage((BufferedImage) patch.getImage(), null));
+                    iv.setFitWidth(50);
+                    iv.setPreserveRatio(true);
+
+                    // Ajouter un tooltip avec les infos du patch
+                    Tooltip.install(iv, new Tooltip(
+                        "Taille: " + patch.getMatrice().length + "x" + patch.getMatrice()[0].length +
+                        "\nPosition: (" + patch.getPremierPixelPos()[0] + "," + patch.getPremierPixelPos()[1] + ")"));
+
+                    patchesPane.getChildren().add(iv);
+                }
+            }
+        }
+    }
+
+    
+    public void setOnExtractPatchesRequested(Runnable handler) {
+        this.onExtractPatchesRequested = handler;
     }
 
     public double getNoiseLevel() {
