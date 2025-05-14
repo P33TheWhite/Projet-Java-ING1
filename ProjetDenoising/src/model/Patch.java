@@ -8,7 +8,6 @@ public class Patch {
     private int taille;
     private int[] position;
     private int[] premierPixelPos;
-    private int[] position;
 
 
     public Patch() {
@@ -50,11 +49,6 @@ public class Patch {
     public int[] getPremierPixelPos() {
     	return this.premierPixelPos;
     }
-<<<<<<< HEAD
-    public void setPosition(int[] position) {
-        this.position = position;
-    }
-=======
     
     public void setPosition(int[] position) {
         this.position = position;
@@ -63,5 +57,5 @@ public class Patch {
     public int[] getPosition() {
     	return this.position;
     }
->>>>>>> 3625e4a2177ba1f819fed2a5688af8e41ef84277
+
 }
