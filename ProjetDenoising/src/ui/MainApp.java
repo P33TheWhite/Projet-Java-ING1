@@ -1,3 +1,5 @@
+
+
 package ui;
 
 import javafx.application.Application;
@@ -33,7 +35,7 @@ public class MainApp extends Application {
             MainView vue = new MainView(primaryStage);
             DenoisingController controller = new DenoisingController(vue);
 
-            // ✅ On définit ici le bon mode dans le contrôleur, qui appellera lui-même la bonne méthode dans la vue
+            
             if (mode.equals("Approche globale")) {
                 controller.setModeGlobal(true);  // Mode global
             } else {

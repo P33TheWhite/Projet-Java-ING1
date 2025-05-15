@@ -4,7 +4,6 @@ import model.Patch;
 import model.Vector;
 import model.Pixel;
 
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,9 +14,10 @@ public class VecteurPatch {
         this.vecteurs = new ArrayList<>();
     }
 
-    public void ajouterDepuisListe(ArrayList<ArrayList<Patch>> liste) {
-        for (List<Patch> ligne : liste) {
-            for (Patch p : ligne) {
+    // Updated method to handle both List<ArrayList<Patch>> and ArrayList<ArrayList<Patch>>
+    public void ajouterDepuisListe(List<? extends List<Patch>> liste) {
+        for (List<Patch> patchList : liste) {
+            for (Patch p : patchList) {
                 Pixel[][] matrice = p.getMatrice();
                 int h = matrice.length;
                 int w = matrice[0].length;
@@ -25,11 +25,11 @@ public class VecteurPatch {
                 if (h != w) {
                     System.err.println("❌ Patch non carré détecté : " + h + "x" + w +
                             " à la position " + p.getPremierPixelPos()[0] + "," + p.getPremierPixelPos()[1]);
-                    continue; // Ignore ce patch
+                    continue;
                 }
 
                 try {
-                    Vector v = new Vector(matrice, h, p.getPremierPixelPos()); // h == s supposé
+                    Vector v = new Vector(matrice, h, p.getPremierPixelPos());
                     vecteurs.add(v);
                 } catch (IllegalArgumentException e) {
                     System.err.println("Erreur de vectorisation : " + e.getMessage());
@@ -37,6 +37,8 @@ public class VecteurPatch {
             }
         }
     }
+
+    
 
     public double[][] getCanal(String canal) {
         int n = vecteurs.size();
@@ -69,4 +71,8 @@ public class VecteurPatch {
             System.out.println();
         }
     }
+    public List<Vector> getVecteurs() {
+        return this.vecteurs;
+    }
+
 }

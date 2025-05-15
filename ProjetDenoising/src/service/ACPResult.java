@@ -2,9 +2,10 @@ package service;
 
 public class ACPResult {
     private double[] mV;              // Moyenne de chaque coordonnée
-    private double[][] U;            // Base orthonormale (matrice dont chaque colonne est un vecteur propre)
-    private double[][] Vc;           // Matrice centrée (chaque colonne est un patch vectorisé centré)
-    private double[] valeursPropres; // Valeurs propres (variance portée par chaque axe)
+    private double[][] U;            // Base orthonormale
+    private double[][] Vc;           // Matrice centrée
+    private double[] valeursPropres; // Valeurs propres
+    private double[][] alphaSeuille; // coefficients projetés et seuillés
 
     // Getter et Setter pour mV
     public double[] getmV() {
@@ -40,5 +41,14 @@ public class ACPResult {
 
     public void setValeursPropres(double[] valeursPropres) {
         this.valeursPropres = valeursPropres;
+    }
+
+    // Getter et Setter pour alphaSeuille
+    public double[][] getAlphaSeuille() {
+        return alphaSeuille;
+    }
+
+    public void setAlphaSeuille(double[][] alphaSeuille) {
+        this.alphaSeuille = alphaSeuille;
     }
 }

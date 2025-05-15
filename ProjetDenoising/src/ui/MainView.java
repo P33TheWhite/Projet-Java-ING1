@@ -44,6 +44,10 @@ public class MainView {
     private Consumer<File> onSaveRequested;
     private Runnable onCutRequested;
     private HBox decoupeControls;
+    private final ImageView denoisedView = new ImageView();
+    private final Button denoiseButton = new Button("Débruiter l'image");
+    private Runnable onDenoiseRequested;
+    private final TextArea qualityReportArea = new TextArea();
 
     public MainView(Stage stage) {
         this.stage = stage;
@@ -51,7 +55,7 @@ public class MainView {
     }
 
     private void setupUI() {
-        stage.setTitle("Découpe d'images dynamique");
+        stage.setTitle("Découpe d'images par ACP");
 
         Button selectImage = new Button("Choisir une image");
         selectImage.setOnAction(e -> {
@@ -63,6 +67,10 @@ public class MainView {
                 onImageSelected.accept(file);
             }
         });
+        
+        qualityReportArea.setEditable(false);
+        qualityReportArea.setWrapText(true);
+        qualityReportArea.setPrefRowCount(4);
 
         noiseSlider.setShowTickLabels(true);
         noiseSlider.setShowTickMarks(true);
@@ -100,7 +108,19 @@ public class MainView {
                 onCutRequested.run();
             }
         });
-
+        
+        denoiseButton.setDisable(true);
+        denoiseButton.setOnAction(e -> {
+            if (onDenoiseRequested != null) {
+                onDenoiseRequested.run();
+            }
+        });
+        
+        denoisedView.setFitWidth(300);
+        denoisedView.setFitHeight(250);
+        denoisedView.setPreserveRatio(true);
+        denoisedView.setSmooth(true);
+        
         originalView.setFitWidth(300);
         originalView.setFitHeight(300);
         originalView.setPreserveRatio(true);
@@ -129,7 +149,8 @@ public class MainView {
         HBox patchControls = new HBox(10,
             new Label("Taille de patch:"), patchSizeCombo,
             new Label("Pas:"), patchStepCombo,
-            extractPatchesButton
+            extractPatchesButton,
+            denoiseButton
         );
         patchControls.setAlignment(Pos.CENTER_LEFT);
 
@@ -149,7 +170,11 @@ public class MainView {
         );
         decoupeControls.setAlignment(Pos.CENTER_LEFT);
 
-        HBox imageContainer = new HBox(20, originalView, noisyView);
+        HBox imageContainer = new HBox(10, 
+                new VBox(5, new Label("Originale"), originalView),
+                new VBox(5, new Label("Bruitée"), noisyView),
+                new VBox(5, new Label("Débruitée"), denoisedView)
+            );
         imageContainer.setAlignment(Pos.CENTER);
 
         VBox mainContent = new VBox(10,
@@ -164,7 +189,9 @@ public class MainView {
             new Label("Paramètres d'extraction de patchs:"),
             patchControls,
             new Label("Patchs extraits:"),
-            patchesScrollPane
+            patchesScrollPane,
+            new Label("Rapport de qualité:"),
+            qualityReportArea
         );
         mainContent.setPadding(new Insets(15));
 
@@ -242,6 +269,8 @@ public class MainView {
     public double getNoiseLevel() { return noiseSlider.getValue(); }
     public void setOriginalImage(BufferedImage image) { originalView.setImage(SwingFXUtils.toFXImage(image, null)); }
     public void setNoisyImage(BufferedImage image) { noisyView.setImage(SwingFXUtils.toFXImage(image, null)); }
+    public void setOnDenoiseRequested(Runnable handler) { this.onDenoiseRequested = handler; }
+    public void setDenoisedImage(BufferedImage image) { denoisedView.setImage(SwingFXUtils.toFXImage(image, null)); }
 
     public void displayImagettes(List<Imagette> imagettes) {
         imagettesPane.getChildren().clear();
@@ -260,6 +289,7 @@ public class MainView {
 
     public void enableSave(boolean enabled) { saveButton.setDisable(!enabled); }
     public void enableCut(boolean enabled) { cutButton.setDisable(!enabled); }
+    public void enableDenoise(boolean enabled) { denoiseButton.setDisable(!enabled); }
 
     public void showError(String message) { errorLabel.setText(message); }
 
@@ -270,6 +300,7 @@ public class MainView {
         imagetteBlock.setManaged(false);
         cutButton.setDisable(true);
         extractPatchesButton.setDisable(false);
+        denoiseButton.setDisable(true);
         showError("Mode global : pas de découpe en imagettes. Choisissez une image, appliquez du bruit, puis extrayez les patchs.");
     }
 
@@ -280,6 +311,18 @@ public class MainView {
         imagetteBlock.setManaged(true);
         cutButton.setDisable(false);
         extractPatchesButton.setDisable(false);
+        denoiseButton.setDisable(true);
         showError("Mode local : découpez en imagettes avant d'extraire les patchs.");
     }
+    public void showQualityReport(String report) {
+        qualityReportArea.setText(report);
+    }
+    public BufferedImage getDenoisedImage() {
+        javafx.scene.image.Image fxImage = denoisedView.getImage();
+        if (fxImage == null) {
+            return null;
+        }
+        return SwingFXUtils.fromFXImage(fxImage, null);
+    }
+
 }
