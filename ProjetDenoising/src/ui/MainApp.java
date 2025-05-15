@@ -1,17 +1,52 @@
 package ui;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.stage.Stage;
+import javafx.scene.control.ChoiceDialog;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
 public class MainApp extends Application {
+
     @Override
     public void start(Stage primaryStage) {
-        DenoisingController controller = new DenoisingController(primaryStage);
-        controller.initialize();
+        List<String> choix = Arrays.asList("Approche globale", "Approche locale (imagettes)");
+        ChoiceDialog<String> dialog = new ChoiceDialog<>("Approche globale", choix);
+        dialog.setTitle("Choix de la méthode");
+        dialog.setHeaderText("Sélectionne la méthode de traitement des patchs");
+        dialog.setContentText("Méthode :");
+
+        Optional<String> resultat = dialog.showAndWait();
+
+        if (resultat.isEmpty()) {
+            System.out.println("Aucun mode sélectionné. Fermeture.");
+            Platform.exit();
+            return;
+        }
+
+        String mode = resultat.get();
+
+        try {
+            MainView vue = new MainView(primaryStage);
+            DenoisingController controller = new DenoisingController(vue);
+
+            // ✅ On définit ici le bon mode dans le contrôleur, qui appellera lui-même la bonne méthode dans la vue
+            if (mode.equals("Approche globale")) {
+                controller.setModeGlobal(true);  // Mode global
+            } else {
+                controller.setModeGlobal(false); // Mode local
+            }
+
+            vue.show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public static void main(String[] args) {
         launch(args);
     }
 }
-

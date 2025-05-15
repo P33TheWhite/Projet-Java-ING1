@@ -9,6 +9,7 @@ import service.Bruit;
 import service.Convert;
 import service.DecoupeImage;
 import service.ExtracteurPatch;
+import service.VecteurPatch;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -16,7 +17,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class DenoisingController {
@@ -27,25 +27,33 @@ public class DenoisingController {
     private BufferedImage imageOriginale;
     private int maxDivisions = 1;
     private List<Imagette> currentImagettes;
+    private boolean isModeGlobal = false;
 
-    public DenoisingController(Stage stage) {
-        this.view = new MainView(stage);
+    public DenoisingController(MainView view) {
+        this.view = view;
+        initialize();
     }
 
-    public void initialize() {
+    private void initialize() {
         view.setOnImageSelected(this::handleImageSelection);
         view.setOnNoiseChanged(this::updateNoisyImage);
         view.setOnSaveRequested(this::saveNoisyImage);
         view.setOnCutRequested(this::cutImage);
-        view.setOnExtractPatchesRequested(this::extractPatchesFromImagettes);
-        view.show();
+        view.setOnExtractPatchesRequested(this::extractPatches);
+    }
+
+    public void setModeGlobal(boolean modeGlobal) {
+        this.isModeGlobal = modeGlobal;
+        if (modeGlobal) {
+            view.lancerModeGlobal();
+        } else {
+            view.lancerModeLocal();
+        }
     }
 
     private void handleImageSelection(File file) {
         try {
             BufferedImage imageChargee = ImageIO.read(file);
-
-            // Vérifie si la largeur/hauteur est divisible par 16
             int largeur = imageChargee.getWidth();
             int hauteur = imageChargee.getHeight();
             int nouvelleLargeur = largeur - (largeur % 16);
@@ -63,15 +71,14 @@ public class DenoisingController {
             Photo photo = new Photo(imageOriginale, imageOriginale.getWidth(), imageOriginale.getHeight());
             matriceOriginale = Convert.convertirImageEnMatrice(photo);
             view.setOriginalImage(imageOriginale);
+            view.setPossiblePatchSizes(imageOriginale.getWidth(), imageOriginale.getHeight());
             updateNoisyImage(view.getNoiseLevel());
             view.enableSave(true);
-            view.enableCut(true);
+            view.enableCut(!isModeGlobal);
 
-            // Calcul du nombre maximal d'imagettes
             int maxDivisionsWidth = imageOriginale.getWidth() / 16;
             int maxDivisionsHeight = imageOriginale.getHeight() / 16;
             maxDivisions = maxDivisionsWidth * maxDivisionsHeight;
-
             if (maxDivisions < 1) maxDivisions = 1;
 
         } catch (IOException e) {
@@ -79,7 +86,6 @@ public class DenoisingController {
             e.printStackTrace();
         }
     }
-
 
     private void updateNoisyImage(double noiseLevel) {
         if (matriceOriginale != null) {
@@ -100,49 +106,58 @@ public class DenoisingController {
             }
         }
     }
-    
-    private void extractPatchesFromImagettes() {
+
+    private void extractPatches() {
+        int patchSize = view.getPatchSize();
+        int step = view.getPatchStep();
+
+        if (isModeGlobal) {
+            if (imageBruitee == null) {
+                view.showError("Veuillez d'abord charger une image et appliquer du bruit");
+                return;
+            }
+
+            ArrayList<ArrayList<Patch>> patches = ExtracteurPatch.extractPatchs(imageBruitee, step, patchSize);
+            List<ArrayList<ArrayList<Patch>>> wrapper = new ArrayList<>();
+            wrapper.add(patches);
+            view.displayPatches(wrapper);
+
+            // ✅ Vectorisation globale
+            VecteurPatch vp = new VecteurPatch();
+            vp.ajouterDepuisListe(patches);
+            vp.afficherExtraits(10);  // Montre les 10 premiers pixels de chaque canal
+            return;
+        }
+
+        // Sinon mode local
         if (currentImagettes == null || currentImagettes.isEmpty()) {
             view.showError("Veuillez d'abord découper l'image en imagettes");
             return;
         }
 
-        int patchSize = view.getPatchSize();
-        int step = view.getPatchStep();
+        List<ArrayList<ArrayList<Patch>>> allPatches = new ArrayList<>();
+        int imagetteIndex = 0;
 
-        // Vérifier que les paramètres sont valides
         for (Imagette imagette : currentImagettes) {
             BufferedImage img = imagette.getImage();
             if (img.getWidth() < patchSize || img.getHeight() < patchSize) {
                 view.showError("La taille de patch est trop grande pour certaines imagettes");
                 return;
             }
+
+            ArrayList<ArrayList<Patch>> patches = ExtracteurPatch.extractPatchs(img, step, patchSize);
+            allPatches.add(patches);
+
+            // ✅ Vectorisation locale pour chaque imagette
+            VecteurPatch vp = new VecteurPatch();
+            vp.ajouterDepuisListe(patches);
+            System.out.println(">>> Imagette " + imagetteIndex);
+            vp.afficherExtraits(10);
+            imagetteIndex++;
         }
 
-        // Extraire les patchs de chaque imagette
-        List<ArrayList<ArrayList<Patch>>> allPatches = new ArrayList<>();
-        for (Imagette imagette : currentImagettes) {
-            ArrayList<ArrayList<Patch>> patches = ExtracteurPatch.extractPatchs(
-                imagette.getImage(), step, patchSize);
-
-            // Afficher les positions des patchs extraits pour chaque imagette
-            System.out.println("Extracting patches from Imagette...");
-            for (ArrayList<Patch> lignePatchs : patches) {
-                for (Patch patch : lignePatchs) {
-                    int[] position = patch.getPosition();  // Récupérer la position du patch
-                    System.out.println("Patch à la position : (" + position[0] + ", " + position[1] + ")");
-                }
-            }
-
-            // Ajouter les patchs extraits à la liste de tous les patchs
-            allPatches.add(patches);  // On ajoute simplement la liste des patchs sans l'imbriquer plus
-        }
-
-        // Afficher les patchs dans la vue
         view.displayPatches(allPatches);
     }
-
-
 
     private void cutImage() {
         try {
@@ -161,7 +176,6 @@ public class DenoisingController {
                 view.showError("Le nombre de divisions doit être pair");
                 return;
             }
-
             if (divisions > maxDivisions) {
                 view.showError("Nombre de divisions trop grand (max " + maxDivisions + ")");
                 return;
@@ -169,15 +183,14 @@ public class DenoisingController {
 
             Photo photo = new Photo(imageBruitee, imageOriginale.getWidth(), imageOriginale.getHeight());
             List<Imagette> imagettes = DecoupeImage.decoupeImage(photo, divisions);
-            currentImagettes = imagettes; // Stocker les imagettes pour extraction ultérieure
-            view.displayImagettes(imagettes);
-            
-            // Calculer les tailles de patch possibles
+            currentImagettes = imagettes;
+
             if (!imagettes.isEmpty()) {
                 int width = imagettes.get(0).getImage().getWidth();
                 int height = imagettes.get(0).getImage().getHeight();
                 view.setPossiblePatchSizes(width, height);
             }
+
             view.displayImagettes(imagettes);
             view.showError("Découpe réussie : " + divisions + " imagettes");
         } catch (Exception e) {
