@@ -1,9 +1,9 @@
-
-
 package service;
+
 import model.Pixel;
 
 public class QualiteImage {
+	
     // Seuils de qualité
     private static final double PSNR_EXCELLENT = 40.0;
     private static final double PSNR_BON = 30.0;
@@ -22,7 +22,7 @@ public class QualiteImage {
             }
         }
         
-        return sommeErreursCarrees / (nombrePixels * 3); // 3 canaux
+        return sommeErreursCarrees / (nombrePixels * 3); // 3 composantes RGB
     }
     
     private static double calculerErreurPixel(Pixel original, Pixel traite) {
@@ -80,4 +80,5 @@ public class QualiteImage {
         } else {
             return "Mauvaise qualité";
         }
-    }}
+    }
+}

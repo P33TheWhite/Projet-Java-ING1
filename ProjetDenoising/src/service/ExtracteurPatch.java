@@ -8,21 +8,14 @@ import java.util.ArrayList;
 
 public class ExtracteurPatch {
 
-    /**
-     * Extrait une matrice de patchs réels à partir d'une image BufferedImage.
-     *
-     * @param image        l'image source
-     * @param pas          le pas (stride) entre deux patchs
-     * @param taillePatch  la taille (largeur et hauteur) du patch carré
-     * @return             une matrice (liste de listes) de patchs extraits
-     */
+    // Extrait une matrice de patchs réels à partir d'une image BufferedImage
     public static ArrayList<ArrayList<Patch>> extractPatchs(BufferedImage image, int pas, int taillePatch) {
         ArrayList<ArrayList<Patch>> matricePatchs = new ArrayList<>();
 
         int largeur = image.getWidth();
         int hauteur = image.getHeight();
 
-        // Convertir BufferedImage en matrice de Pixels
+        // BufferedImage en matrice de Pixels
         Pixel[][] matriceImage = new Pixel[hauteur][largeur];
         for (int y = 0; y < hauteur; y++) {
             for (int x = 0; x < largeur; x++) {
@@ -34,7 +27,7 @@ public class ExtracteurPatch {
             }
         }
 
-        // Marquer les pixels déjà utilisés
+        // Pixels déjà utilisés
         boolean[][] dejaUtilise = new boolean[hauteur][largeur];
 
         for (int y = 0; y <= hauteur - taillePatch; y += pas) {
@@ -51,14 +44,13 @@ public class ExtracteurPatch {
                         Pixel original = matriceImage[coordY][coordX];
                         Pixel copie = new Pixel(original.getRouge(), original.getVert(), original.getBleu());
 
-                        // Vérifier le chevauchement
+                        // Chevauchement
                         if (dejaUtilise[coordY][coordX]) {
                             copie.setestSuperpose(true);
                         } else {
                             copie.setestSuperpose(false);
                             dejaUtilise[coordY][coordX] = true;
                         }
-
                         matricePatch[i][j] = copie;
                     }
                 }
@@ -66,17 +58,15 @@ public class ExtracteurPatch {
                 Patch patch = new Patch();
                 patch.setMatrice(matricePatch);
                 patch.setImage(image.getSubimage(x, y, taillePatch, taillePatch));
-                patch.setPremierPixelPos(new int[]{x, y});  // position absolue du premier pixel
-                patch.setPosition(new int[]{x, y});  // position absolue du patch dans l'image
- // position dans la grille
-                 // patch.setS(pas);  // facultatif mais utile
+                patch.setPremierPixelPos(new int[]{x, y}); // position du premier pixel
+                patch.setPosition(new int[]{x, y}); // position du patch dans l'image
+                
+                // patch.setS(pas);  // facultatif mais utile
 
                 lignePatchs.add(patch);
             }
-
             matricePatchs.add(lignePatchs);
         }
-
         return matricePatchs;
     }
 }

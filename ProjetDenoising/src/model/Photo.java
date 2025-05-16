@@ -28,7 +28,7 @@ public class Photo {
         this.matrice = Convert.convertirImageEnMatrice(this);
     }
 
-    // Nouveau constructeur utilisé Denoising controller avec BufferedImage déjà chargé
+    // Constructeur pour Denoising controller
     public Photo(BufferedImage image, int largeur, int hauteur) {
         this.bufferedImage = image;
         this.largeur = largeur;
@@ -38,6 +38,7 @@ public class Photo {
         this.matrice = null;
         this.variance = 0;
     }
+    
     public Photo(BufferedImage image, int largeur, int hauteur, Pixel[][] matrice) {
         this.bufferedImage = image;
         this.largeur = largeur;

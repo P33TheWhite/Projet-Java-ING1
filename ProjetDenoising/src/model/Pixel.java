@@ -43,8 +43,6 @@ public class Pixel {
     public boolean getestSuperpose(){
     	return estSuperpose;
     }
-    
-
 
     public int toRGB() {
         return (rouge << 16) | (vert << 8) | bleu;

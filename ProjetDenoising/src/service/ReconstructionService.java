@@ -7,16 +7,11 @@ import model.Vector;
 
 public class ReconstructionService {
 
-    public BufferedImage reconstruireImageDepuisACP(double[][] canalRReconstruit, 
-                                                    double[][] canalGReconstruit, 
-                                                    double[][] canalBReconstruit, 
-                                                    List<Vector> vecteurs, 
-                                                    int largeurImage, 
-                                                    int hauteurImage, 
-                                                    int taillePatch) {
-        BufferedImage image = new BufferedImage(largeurImage, hauteurImage, BufferedImage.TYPE_INT_RGB);
+    public BufferedImage reconstruireImageDepuisACP(double[][] canalRReconstruit, double[][] canalGReconstruit, double[][] canalBReconstruit, List<Vector> vecteurs, int largeurImage, int hauteurImage, int taillePatch) {
+        
+    	BufferedImage image = new BufferedImage(largeurImage, hauteurImage, BufferedImage.TYPE_INT_RGB);
 
-        int[][][] compteur = new int[hauteurImage][largeurImage][3];  // Pour compter le chevauchement
+        int[][][] compteur = new int[hauteurImage][largeurImage][3];  // Compteur chevauchement
         int[][] sommeR = new int[hauteurImage][largeurImage];
         int[][] sommeG = new int[hauteurImage][largeurImage];
         int[][] sommeB = new int[hauteurImage][largeurImage];
@@ -65,7 +60,6 @@ public class ReconstructionService {
                 image.setRGB(x, y, rgb);
             }
         }
-
         return image;
     }
 }

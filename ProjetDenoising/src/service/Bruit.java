@@ -38,11 +38,10 @@ public class Bruit {
                 noisedImage[i][j] = new Pixel(newR, newG, newB);
             }
         }
-
         return noisedImage;
     }
 
-    // Méthode utilitaire pour rester dans l'intervalle 0-255
+    // Pixel entre 0 et 255
     private static int clamp(int value) {
         return Math.max(0, Math.min(255, value));
     }

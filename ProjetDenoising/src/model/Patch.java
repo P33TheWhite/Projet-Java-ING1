@@ -54,7 +54,6 @@ public class Patch {
         return this.position;
     }
 
-    // ✅ Ajout : extraire un canal
     public double[] extraireCanal(String canal) {
         int h = matrice.length;
         int w = matrice[0].length;

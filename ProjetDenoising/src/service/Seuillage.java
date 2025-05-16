@@ -8,6 +8,7 @@ public class Seuillage {
      * @param seuil Valeur de seuillage
      * @return Matrice des coefficients seuillés
      */
+	
     public static double[][] seuillageDoux(double[][] alpha, double seuil) {
         int M = alpha.length;
         int s2 = alpha[0].length;
@@ -41,8 +42,6 @@ public class Seuillage {
                 contributionsSeuillées[i][j] = Math.abs(val) >= seuil ? val : 0.0;
             }
         }
-
         return contributionsSeuillées;
     }
-
 }

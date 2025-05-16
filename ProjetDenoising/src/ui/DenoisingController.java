@@ -1,28 +1,43 @@
 package ui;
 
-import javafx.stage.Stage;
-import model.*;
-import service.*;
-import org.apache.commons.math3.linear.*;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
+import model.Imagette;
+import model.Patch;
+import model.Photo;
+import model.Pixel;
+import service.ACP;
+import service.ACPResult;
+import service.Bruit;
+import service.Convert;
+import service.DecoupeImage;
+import service.ExtracteurPatch;
+import service.Proj;
+import service.QualiteImage;
+import service.Reconstruction;
+import service.ReconstructionService;
+import service.VecteurPatch;
 
 import javax.imageio.ImageIO;
-import java.awt.*;
+
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class DenoisingController {
     // Constantes
-    private static final double SEUIL_ENERGIE = 0.95;
-    private static final double FACTEUR_SEUIL_GLOBAL = 1.349; // 0.6745 * 2
-    private static final double FACTEUR_SEUIL_LOCAL = 1.01175; // 0.6745 * 1.5
+    private static final double SEUIL_ENERGIE = 0.98; // 0,95 de base
+    private static final double FACTEUR_SEUIL_GLOBAL = 0.6745; // de base 1.349 = 0.6745 * 2
+    private static final double FACTEUR_SEUIL_LOCAL = 0.8094; // de base 1.01175 = 0.6745 * 1.5 et la x1,2
     private static final int VALEUR_PIXEL_MAX = 255;
     
     private final MainView view;
@@ -66,7 +81,7 @@ public class DenoisingController {
             int largeur = imageChargee.getWidth();
             int hauteur = imageChargee.getHeight();
             
-            // Ajustement de la taille pour être divisible par 16
+            // Taille divisible par 16
             int nouvelleLargeur = largeur - (largeur % 16);
             int nouvelleHauteur = hauteur - (hauteur % 16);
             
@@ -87,7 +102,7 @@ public class DenoisingController {
             view.enableSave(true);
             view.enableCut(!isModeGlobal);
 
-            // Calcul du nombre maximum de divisions
+            // Nombre maximum de divisions
             maxDivisions = (imageOriginale.getWidth() / 16) * (imageOriginale.getHeight() / 16);
             if (maxDivisions < 1) maxDivisions = 1;
 
@@ -227,7 +242,7 @@ public class DenoisingController {
         }
     }
 
-    // Sélection de la stratégie de seuillage
+    // Sélection du seuillage
     private StrategieSeuillage obtenirStrategieSeuillageDepuisUtilisateur() {
         List<String> choix = Arrays.asList("Seuillage dur", "Seuillage doux");
         ChoiceDialog<String> dialogue = new ChoiceDialog<>("Seuillage dur", choix);
@@ -275,6 +290,7 @@ public class DenoisingController {
     private double calculerSeuil(ACPResult resultatACP, int composantesConservees, boolean isGlobal) {
         double[][] alpha = Proj.calculerContributions(resultatACP.getU(), resultatACP.getVc());
         double[] alphaPertinents = extraireValeursAlphaPertinentes(alpha, composantesConservees);
+        
         double mediane = calculerMedianeAbsolue(alphaPertinents);
         
         return isGlobal 
@@ -423,7 +439,6 @@ public class DenoisingController {
         return pixels;
     }
 
-    // Méthodes utilitaires
     private double calculerMedianeAbsolue(double[] valeurs) {
         double[] valeursAbsolues = Arrays.stream(valeurs).map(Math::abs).toArray();
         Arrays.sort(valeursAbsolues);
@@ -488,7 +503,6 @@ public class DenoisingController {
         return imageRedimensionnee;
     }
 
-    // Pattern stratégie pour le seuillage
     private interface StrategieSeuillage {
         double appliquerSeuil(double valeur, double seuil);
     }

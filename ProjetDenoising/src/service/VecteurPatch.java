@@ -14,8 +14,9 @@ public class VecteurPatch {
         this.vecteurs = new ArrayList<>();
     }
 
-    // Updated method to handle both List<ArrayList<Patch>> and ArrayList<ArrayList<Patch>>
+    // Gerer des List<ArrayList<Patch>> et ArrayList<ArrayList<Patch>>
     public void ajouterDepuisListe(List<? extends List<Patch>> liste) {
+
         for (List<Patch> patchList : liste) {
             for (Patch p : patchList) {
                 Pixel[][] matrice = p.getMatrice();
@@ -23,11 +24,11 @@ public class VecteurPatch {
                 int w = matrice[0].length;
 
                 if (h != w) {
-                    System.err.println("❌ Patch non carré détecté : " + h + "x" + w +
+                    System.err.println("Patch non carré détecté : " + h + "x" + w +
                             " à la position " + p.getPremierPixelPos()[0] + "," + p.getPremierPixelPos()[1]);
                     continue;
                 }
-
+                
                 try {
                     Vector v = new Vector(matrice, h, p.getPremierPixelPos());
                     vecteurs.add(v);
@@ -38,8 +39,6 @@ public class VecteurPatch {
         }
     }
 
-    
-
     public double[][] getCanal(String canal) {
         int n = vecteurs.size();
         int taille = vecteurs.get(0).getS2();
@@ -48,7 +47,6 @@ public class VecteurPatch {
         for (int i = 0; i < n; i++) {
             data[i] = vecteurs.get(i).extraireCanal(canal);
         }
-
         return data;
     }
 
@@ -71,8 +69,8 @@ public class VecteurPatch {
             System.out.println();
         }
     }
+    
     public List<Vector> getVecteurs() {
         return this.vecteurs;
     }
-
 }

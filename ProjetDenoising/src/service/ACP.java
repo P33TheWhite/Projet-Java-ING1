@@ -7,14 +7,13 @@ import org.apache.commons.math3.linear.RealVector;
 
 public class ACP {
 
-    /**
-     * Calcule la moyenne, la matrice de covariance et la version centrée de V
-     */
+     // Calcule la moyenne, la matrice de covariance et la version centrée de V
+	
     public static ACPResult appliquerACP(double[][] V) {
         int M = V.length;
         int s2 = V[0].length;
 
-        // 1. Calcul de la moyenne mV
+        // Calcul de la moyenne mV
         double[] mV = new double[s2];
         for (int i = 0; i < M; i++) {
             for (int j = 0; j < s2; j++) {
@@ -25,7 +24,7 @@ public class ACP {
             mV[j] /= M;
         }
 
-        // 2. Centrer les vecteurs
+        // Centrer les vecteurs
         double[][] Vc = new double[M][s2];
         for (int i = 0; i < M; i++) {
             for (int j = 0; j < s2; j++) {
@@ -33,7 +32,7 @@ public class ACP {
             }
         }
 
-        // 3. Calcul de la matrice de covariance Γ = 1/M * Vc^T * Vc
+        // Calcul de la matrice de covariance Γ = 1/M * Vc^T * Vc
         double[][] covariance = new double[s2][s2];
         for (int i = 0; i < s2; i++) {
             for (int j = 0; j < s2; j++) {
@@ -44,7 +43,7 @@ public class ACP {
             }
         }
 
-        // 4. Diagonalisation de la matrice de covariance
+        // Diagonalisation
         RealMatrix covarianceMatrix = MatrixUtils.createRealMatrix(covariance);
         EigenDecomposition eig = new EigenDecomposition(covarianceMatrix);
 
@@ -56,17 +55,17 @@ public class ACP {
             valeursPropres[i] = eig.getRealEigenvalue(i);
             RealVector vec = eig.getEigenvector(i);
             for (int j = 0; j < n; j++) {
-                U[j][i] = vec.getEntry(j); // Chaque colonne de U est un vecteur propre
+            	// Chaque colonne de U est un vecteur propre
+                U[j][i] = vec.getEntry(j);
             }
         }
 
-        // 5. Retourner les résultats
+        // Resultats
         ACPResult res = new ACPResult();
         res.setmV(mV);
         res.setU(U);
         res.setVc(Vc);
         res.setValeursPropres(valeursPropres);
         return res;
-
     }
 }
