@@ -2,14 +2,11 @@ package service;
 
 public class Seuillage {
 
-    /**
-     * Applique un seuillage doux (soft thresholding) sur les coefficients de projection
-     * @param alpha Matrice des coefficients (M × s2)
-     * @param seuil Valeur de seuillage
-     * @return Matrice des coefficients seuillés
-     */
-	
     public static double[][] seuillageDoux(double[][] alpha, double seuil) {
+        if (alpha == null || alpha.length == 0 || alpha[0] == null) {
+            throw new IllegalArgumentException("Matrice alpha invalide");
+        }
+        
         int M = alpha.length;
         int s2 = alpha[0].length;
 
@@ -18,30 +15,36 @@ public class Seuillage {
         for (int i = 0; i < M; i++) {
             for (int j = 0; j < s2; j++) {
                 double a = alpha[i][j];
+                // Seuillage doux : sign(a) * max(|a| - seuil, 0
                 alphaSeuilles[i][j] = Math.signum(a) * Math.max(Math.abs(a) - seuil, 0);
             }
         }
         return alphaSeuilles;
     }
-    
-    /**
-     * Applique un seuillage dur sur les coefficients de projection (contributions).
-     * @param Vcontrib Contributions (s2 × M) de chaque axe principal pour chaque vecteur V centré
-     * @param seuil Valeur seuil lambda à appliquer
-     * @return Nouvelle matrice des contributions seuillées
-     */
-    public static double[][] seuillageDur(double[][] Vcontrib, double seuil) {
-        int lignes = Vcontrib.length;    // s2
-        int colonnes = Vcontrib[0].length; // M
 
-        double[][] contributionsSeuillées = new double[lignes][colonnes];
+    public static double[][] seuillageDur(double[][] alpha, double seuil) {
+        if (alpha == null || alpha.length == 0 || alpha[0] == null) {
+            throw new IllegalArgumentException("Matrice alpha invalide");
+        }
+        
+        int M = alpha.length;
+        int s2 = alpha[0].length;
 
-        for (int i = 0; i < lignes; i++) {
-            for (int j = 0; j < colonnes; j++) {
-                double val = Vcontrib[i][j];
-                contributionsSeuillées[i][j] = Math.abs(val) >= seuil ? val : 0.0;
+        double[][] alphaSeuilles = new double[M][s2];
+
+        for (int i = 0; i < M; i++) {
+            for (int j = 0; j < s2; j++) {
+                double a = alpha[i][j];
+                // Seuillage dur: a si |a| >= seuil, 0 sinon
+                alphaSeuilles[i][j] = Math.abs(a) >= seuil ? a : 0.0;
             }
         }
-        return contributionsSeuillées;
+        return alphaSeuilles;
+    }
+    
+
+    public static double ajusterSeuilPourSeuillageDur(double seuilDoux) {
+    	//3.18 : optimum théorique calculer
+        return seuilDoux * 3.2;
     }
 }

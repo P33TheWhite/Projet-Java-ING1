@@ -15,6 +15,7 @@ import service.Proj;
 import service.QualiteImage;
 import service.Reconstruction;
 import service.ReconstructionService;
+import service.Seuillage;
 import service.VecteurPatch;
 
 import javax.imageio.ImageIO;
@@ -293,9 +294,16 @@ public class DenoisingController {
         
         double mediane = calculerMedianeAbsolue(alphaPertinents);
         
-        return isGlobal 
-            ? mediane * FACTEUR_SEUIL_GLOBAL
-            : mediane * FACTEUR_SEUIL_LOCAL;
+        // Facteurs de seuillage ajustés
+        double facteur = isGlobal 
+            ? FACTEUR_SEUIL_GLOBAL
+            : FACTEUR_SEUIL_LOCAL;
+        
+        // Estimer l'écart-type du bruit avant seuillage
+        double sigma = mediane / 0.6745; // Estimation robuste de l'écart-type basée sur MAD
+        double seuil = sigma * facteur;
+        
+        return seuil;
     }
 
     private double[] extraireValeursAlphaPertinentes(double[][] alpha, int composantesConservees) {
@@ -310,15 +318,24 @@ public class DenoisingController {
 
     private void appliquerSeuillage(StrategieSeuillage strategie, ACPResult resultatACP, double seuil, int composantesConservees) {
         double[][] alpha = Proj.calculerContributions(resultatACP.getU(), resultatACP.getVc());
-        double[][] alphaSeuille = new double[alpha.length][alpha[0].length];
+        double[][] alphaSeuille;
         
-        for (int m = 0; m < alpha.length; m++) {
-            for (int n = 0; n < alpha[m].length; n++) {
-                if (n < composantesConservees) {
-                    alphaSeuille[m][n] = strategie.appliquerSeuil(alpha[m][n], seuil);
-                } else {
-                    alphaSeuille[m][n] = 0;
-                }
+        // Ajuster le seuil pour le seuillage dur si nécessaire
+        if (strategie instanceof StrategieSeuillageDur) {
+            seuil = Seuillage.ajusterSeuilPourSeuillageDur(seuil);
+        }
+        
+        // Appliquer le seuillage approprié
+        if (strategie instanceof StrategieSeuillageDur) {
+            alphaSeuille = Seuillage.seuillageDur(alpha, seuil);
+        } else {
+            alphaSeuille = Seuillage.seuillageDoux(alpha, seuil);
+        }
+        
+        // Mise à zéro des composantes non conservées
+        for (int m = 0; m < alphaSeuille.length; m++) {
+            for (int n = composantesConservees; n < alphaSeuille[m].length; n++) {
+                alphaSeuille[m][n] = 0;
             }
         }
         
