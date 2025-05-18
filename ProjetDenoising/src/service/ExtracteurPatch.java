@@ -53,9 +53,9 @@ public class ExtracteurPatch {
 
                         // Vérifier le chevauchement
                         if (dejaUtilise[coordY][coordX]) {
-                            copie.setestSuperpose(true);
+                            copie.setSuperpose(true);
                         } else {
-                            copie.setestSuperpose(false);
+                            copie.setSuperpose(false);
                             dejaUtilise[coordY][coordX] = true;
                         }
 

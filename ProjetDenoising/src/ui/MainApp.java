@@ -12,7 +12,16 @@ import java.util.List;
 import java.util.Optional;
 
 public class MainApp extends Application {
-
+	
+	/**
+	 * Méthode principale appelée au lancement de l'application JavaFX.
+	 * Elle affiche une boîte de dialogue permettant à l'utilisateur de choisir
+	 * entre deux méthodes de traitement d'image : globale ou locale (imagettes),
+	 * puis instancie l'interface utilisateur et le contrôleur de traitement
+	 * en fonction du choix effectué.
+	 *
+	 * @param primaryStage La fenêtre principale (stage) fournie par JavaFX.
+	 */
     @Override
     public void start(Stage primaryStage) {
         List<String> choix = Arrays.asList("Approche globale", "Approche locale (imagettes)");

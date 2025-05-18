@@ -1,42 +1,48 @@
- package service;
+package service;
 
 import org.apache.commons.math3.linear.EigenDecomposition;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealVector;
 
+/**
+ * Classe permettant d'appliquer l'Analyse en Composantes Principales (ACP).
+ */
 public class ACP {
 
     /**
-     * Calcule la moyenne, la matrice de covariance et la version centrée de V
+     * Applique l'Analyse en Composantes Principales (ACP) à une matrice de données.
+     *
+     * @param V Matrice de données (M lignes × N colonnes), où chaque ligne est un vecteur d'observation.
+     * @return Résultat de l'ACP : vecteur moyen, matrice centrée, valeurs propres et vecteurs propres.
      */
     public static ACPResult appliquerACP(double[][] V) {
-        int M = V.length;
-        int s2 = V[0].length;
+        int M = V.length;         // Nombre de vecteurs
+        int N = V[0].length;      // Dimension des vecteurs
 
-        // 1. Calcul de la moyenne mV
-        double[] mV = new double[s2];
+        // Moyenne mV
+        double[] mV = new double[N];
         for (int i = 0; i < M; i++) {
-            for (int j = 0; j < s2; j++) {
+            for (int j = 0; j < N; j++) {
                 mV[j] += V[i][j];
             }
         }
-        for (int j = 0; j < s2; j++) {
+        for (int j = 0; j < N; j++) {
             mV[j] /= M;
         }
 
-        // 2. Centrer les vecteurs
-        double[][] Vc = new double[M][s2];
+        // Vecteurs centrés Vc
+        double[][] Vc = new double[M][N];
         for (int i = 0; i < M; i++) {
-            for (int j = 0; j < s2; j++) {
+            for (int j = 0; j < N; j++) {
                 Vc[i][j] = V[i][j] - mV[j];
             }
         }
 
-        // 3. Calcul de la matrice de covariance Γ = 1/M * Vc^T * Vc
-        double[][] covariance = new double[s2][s2];
-        for (int i = 0; i < s2; i++) {
-            for (int j = 0; j < s2; j++) {
+        // Matrice de covariance
+        double[][] covariance = new double[N][N];
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
                 for (int k = 0; k < M; k++) {
                     covariance[i][j] += Vc[k][i] * Vc[k][j];
                 }
@@ -44,29 +50,27 @@ public class ACP {
             }
         }
 
-        // 4. Diagonalisation de la matrice de covariance
+        // Diagonalisation
         RealMatrix covarianceMatrix = MatrixUtils.createRealMatrix(covariance);
         EigenDecomposition eig = new EigenDecomposition(covarianceMatrix);
 
-        int n = covarianceMatrix.getRowDimension();
-        double[][] U = new double[n][n];
-        double[] valeursPropres = new double[n];
+        double[][] U = new double[N][N];
+        double[] valeursPropres = new double[N];
 
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < N; i++) {
             valeursPropres[i] = eig.getRealEigenvalue(i);
             RealVector vec = eig.getEigenvector(i);
-            for (int j = 0; j < n; j++) {
-                U[j][i] = vec.getEntry(j); // Chaque colonne de U est un vecteur propre
+            for (int j = 0; j < N; j++) {
+                U[j][i] = vec.getEntry(j);
             }
         }
 
-        // 5. Retourner les résultats
+        // Résultat
         ACPResult res = new ACPResult();
         res.setmV(mV);
         res.setU(U);
         res.setVc(Vc);
         res.setValeursPropres(valeursPropres);
         return res;
-
     }
 }

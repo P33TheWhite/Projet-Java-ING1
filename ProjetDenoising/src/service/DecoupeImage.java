@@ -8,8 +8,18 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Classe utilitaire pour découper une photo en plusieurs imagettes.
+ */
 public class DecoupeImage {
 
+    /**
+     * Découpe une image en un nombre donné d'imagettes de taille égale.
+     *
+     * @param photo la photo à découper
+     * @param n     le nombre d'imagettes souhaité
+     * @return une liste d'imagettes extraites de l'image
+     */
     public static List<Imagette> decoupeImage(Photo photo, int n) {
         BufferedImage image = photo.getImage();
         int largeur = photo.getLargeur();
@@ -19,21 +29,17 @@ public class DecoupeImage {
 
         if (n <= 0) return imagettes;
 
-        // Déterminer le nombre de colonnes et de lignes nécessaires pour avoir n imagettes
-        int numColumns = (int) Math.sqrt(n);  // Nombre de colonnes
-        int numRows = (int) Math.ceil((double) n / numColumns); // Nombre de lignes
+        int numColumns = (int) Math.sqrt(n);
+        int numRows = (int) Math.ceil((double) n / numColumns);
 
-        // Calcul des dimensions de chaque imagette
-        int W = largeur / numColumns;  // Largeur de chaque imagette
-        int H = hauteur / numRows;    // Hauteur de chaque imagette
+        int W = largeur / numColumns;
+        int H = hauteur / numRows;
 
-        // Boucles pour découper l'image en imagettes
         for (int row = 0; row < numRows; row++) {
             for (int col = 0; col < numColumns; col++) {
                 int x = col * W;
                 int y = row * H;
 
-                // Vérifier que la sous-image ne dépasse pas les dimensions de l'image
                 if (x + W <= largeur && y + H <= hauteur) {
                     BufferedImage subImage = image.getSubimage(x, y, W, H);
                     imagettes.add(new Imagette(subImage, new Point(x, y)));

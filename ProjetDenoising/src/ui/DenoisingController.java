@@ -19,10 +19,10 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class DenoisingController {
-    // Constantes
-    private static final double SEUIL_ENERGIE = 0.95;
-    private static final double FACTEUR_SEUIL_GLOBAL = 1.349; // 0.6745 * 2
-    private static final double FACTEUR_SEUIL_LOCAL = 1.01175; // 0.6745 * 1.5
+    // Constantes optimisées
+    private static final double SEUIL_ENERGIE = 0.98;
+    private static final double FACTEUR_SEUIL_GLOBAL = 0.6745;
+    private static final double FACTEUR_SEUIL_LOCAL = 0.8094;
     private static final int VALEUR_PIXEL_MAX = 255;
     
     private final MainView view;
@@ -36,12 +36,20 @@ public class DenoisingController {
     private VecteurPatch vecteurPatch;
     private double[][][] canauxACP; // [0]=R, [1]=G, [2]=B
     private ACPResult[] acpResults;
+    private double sigmaBruit;
 
+    /**
+     * Constructeur du contrôleur de débruitage
+     * @param view La vue principale de l'application
+     */
     public DenoisingController(MainView view) {
         this.view = view;
         initialiser();
     }
 
+    /**
+     * Initialise les gestionnaires d'événements de la vue
+     */
     private void initialiser() {
         view.setOnImageSelected(this::gererSelectionImage);
         view.setOnNoiseChanged(this::mettreAJourImageBruitee);
@@ -51,6 +59,10 @@ public class DenoisingController {
         view.setOnDenoiseRequested(this::effectuerDebruitage);
     }
 
+    /**
+     * Définit le mode de traitement (global ou local)
+     * @param modeGlobal true pour le mode global, false pour le mode local
+     */
     public void setModeGlobal(boolean modeGlobal) {
         this.isModeGlobal = modeGlobal;
         if (modeGlobal) {
@@ -60,13 +72,16 @@ public class DenoisingController {
         }
     }
 
+    /**
+     * Gère la sélection d'une image par l'utilisateur
+     * @param fichier Le fichier image sélectionné
+     */
     private void gererSelectionImage(File fichier) {
         try {
             BufferedImage imageChargee = ImageIO.read(fichier);
             int largeur = imageChargee.getWidth();
             int hauteur = imageChargee.getHeight();
             
-            // Ajustement de la taille pour être divisible par 16
             int nouvelleLargeur = largeur - (largeur % 16);
             int nouvelleHauteur = hauteur - (hauteur % 16);
             
@@ -87,7 +102,6 @@ public class DenoisingController {
             view.enableSave(true);
             view.enableCut(!isModeGlobal);
 
-            // Calcul du nombre maximum de divisions
             maxDivisions = (imageOriginale.getWidth() / 16) * (imageOriginale.getHeight() / 16);
             if (maxDivisions < 1) maxDivisions = 1;
 
@@ -97,6 +111,10 @@ public class DenoisingController {
         }
     }
 
+    /**
+     * Met à jour l'image bruitée en fonction du niveau de bruit sélectionné
+     * @param niveauBruit Le niveau de bruit à appliquer
+     */
     private void mettreAJourImageBruitee(double niveauBruit) {
         if (matriceOriginale != null) {
             Pixel[][] matriceBruitee = Bruit.noising(matriceOriginale, niveauBruit);
@@ -105,6 +123,10 @@ public class DenoisingController {
         }
     }
 
+    /**
+     * Sauvegarde l'image bruitée dans un fichier
+     * @param fichierSauvegarde Le fichier de destination
+     */
     private void sauvegarderImageBruitee(File fichierSauvegarde) {
         if (imageBruitee != null && fichierSauvegarde != null) {
             try {
@@ -117,6 +139,9 @@ public class DenoisingController {
         }
     }
 
+    /**
+     * Extrait les patchs de l'image (en mode global ou local)
+     */
     private void extrairePatchs() {
         int taillePatch = view.getPatchSize();
         int pas = view.getPatchStep();
@@ -136,7 +161,6 @@ public class DenoisingController {
             vecteurPatch.ajouterDepuisListe(patches);
             vecteurPatch.afficherExtraits(10);
 
-            // Extraction des canaux pour ACP
             canauxACP = new double[3][][];
             canauxACP[0] = vecteurPatch.getCanal("R");
             canauxACP[1] = vecteurPatch.getCanal("G");
@@ -146,7 +170,6 @@ public class DenoisingController {
             return;
         }
 
-        // Mode local
         if (currentImagettes == null || currentImagettes.isEmpty()) {
             view.showError("Veuillez d'abord découper l'image en imagettes");
             return;
@@ -169,95 +192,189 @@ public class DenoisingController {
         view.enableDenoise(true);
     }
 
+    /**
+     * Effectue le débruitage de l'image selon le mode sélectionné
+     */
     private void effectuerDebruitage() {
-        if (isModeGlobal) {
-            effectuerDebruitageGlobal();
-        } else {
-            effectuerDebruitageLocal();
+        try {
+            estimerSigmaBruit();
+            
+            if (isModeGlobal) {
+                effectuerDebruitageGlobal();
+            } else {
+                effectuerDebruitageLocal();
+            }
+            
+            comparerQualiteImages();
+        } catch (IllegalStateException e) {
+            view.showError(e.getMessage());
         }
-        
-        // Comparaison de qualité après débruitage
-        comparerQualiteImages();
+    }
+    
+    /**
+     * Estime le niveau de bruit sigma
+     */
+    private void estimerSigmaBruit() {
+        // 1. Cas simple : l'utilisateur a ajouté du bruit 
+        if (view.getNoiseLevel() > 0) {
+            // Échelle linéaire entre 0 et 30 → proportion de bruit max sur [0–255]
+            sigmaBruit = view.getNoiseLevel();
+            return;
+        }
+
+        // 2. Estimation par ACP si possible
+        if (acpResults != null && acpResults[0] != null) {
+            try {
+                double[][] alpha = Proj.calculerContributions(acpResults[0].getU(), acpResults[0].getVc());
+                double[] alphaPertinents = extraireValeursAlphaPertinentes(alpha, 
+                    determinerComposantesAConserver(acpResults[0]));
+                double mediane = calculerMedianeAbsolue(alphaPertinents);
+                sigmaBruit = mediane / 0.6745;
+
+                if (sigmaBruit > 0 && sigmaBruit < 100) {
+                    return;
+                }
+            } catch (Exception e) {
+                System.err.println("Erreur dans l'estimation ACP du bruit: " + e.getMessage());
+            }
+        }
+
+        // 3. Si l'utilisateur n'a pas précisé de bruit mais a uploadé une image avec bruit généré
+        if (view.getNoiseLevel() == 0 && imageOriginale != null && imageBruitee != null) {
+            sigmaBruit = estimerBruitParDifference();
+            return;
+        }
+
+        // 4. Estimation robuste par différence locale (fallback)
+        if (imageBruitee != null) {
+            try {
+                sigmaBruit = EstimationBruit.estimerSigma(imageBruitee);
+                if (sigmaBruit < 2.0) {
+                    sigmaBruit = 2.0;
+                }
+                return;
+            } catch (Exception e) {
+                System.err.println("Erreur dans l'estimation pixel du bruit: " + e.getMessage());
+            }
+        }
+
+        // 5. Fallback final
+        sigmaBruit = 10.0;
     }
 
+    /**
+     * Estime le bruit par différence entre l'image originale et bruitée
+     * @return Le niveau de bruit estimé
+     */
+    private double estimerBruitParDifference() {
+        int width = Math.min(imageOriginale.getWidth(), imageBruitee.getWidth());
+        int height = Math.min(imageOriginale.getHeight(), imageBruitee.getHeight());
+        double sum = 0;
+        int count = 0;
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                Color original = new Color(imageOriginale.getRGB(x, y));
+                Color noisy = new Color(imageBruitee.getRGB(x, y));
+                
+                // Différence RMS sur les 3 canaux
+                double diff = Math.sqrt(
+                    Math.pow(original.getRed() - noisy.getRed(), 2) +
+                    Math.pow(original.getGreen() - noisy.getGreen(), 2) +
+                    Math.pow(original.getBlue() - noisy.getBlue(), 2)
+                );
+                sum += diff;
+                count++;
+            }
+        }
+
+        double rms = sum / (count * Math.sqrt(3)); // Normalisation
+        return rms / 0.6745; // Conversion approximative en sigma
+    }
+    
+    /**
+     * Extrait les valeurs alpha pertinentes pour l'estimation du bruit
+     * @param alpha Matrice des coefficients alpha
+     * @param composantesConservees Nombre de composantes à conserver
+     * @return Tableau des valeurs alpha pertinentes
+     */
+    private double[] extraireValeursAlphaPertinentes(double[][] alpha, int composantesConservees) {
+        List<Double> valeurs = new ArrayList<>();
+        for (double[] ligne : alpha) {
+            for (int j = 0; j < composantesConservees && j < ligne.length; j++) {
+                valeurs.add(ligne[j]);
+            }
+        }
+        return valeurs.stream().mapToDouble(Double::doubleValue).toArray();
+    }
+
+    /**
+     * Effectue le débruitage en mode global
+     */
     private void effectuerDebruitageGlobal() {
-        try {
-            validerPreconditionsPourDebruitageGlobal();
-            
-            StrategieSeuillage strategie = obtenirStrategieSeuillageDepuisUtilisateur();
-            if (strategie == null) return;
+        validerPreconditionsPourDebruitageGlobal();
+        
+        SeuillageChoice choix = demanderChoixSeuillage();
+        if (choix == null) return;
 
-            traiterTousLesCanaux(strategie, true);
-            
-            imageDebruitee = reconstruireImage();
-            view.setDenoisedImage(imageDebruitee);
-            
-            afficherMessageCompletion(strategie, true);
-        } catch (IllegalStateException e) {
-            view.showError(e.getMessage());
-        }
+        estimerSigmaBruit();
+        traiterTousLesCanaux(choix);
+        
+        imageDebruitee = reconstruireImage();
+        view.setDenoisedImage(imageDebruitee);
+        
+        afficherMessageCompletion(choix, true);
     }
 
-    private void effectuerDebruitageLocal() {
-        try {
-            validerPreconditionsPourDebruitageLocal();
-            
-            StrategieSeuillage strategie = obtenirStrategieSeuillageDepuisUtilisateur();
-            if (strategie == null) return;
+    /**
+     * Demande à l'utilisateur de choisir le type de seuillage
+     * @return Le choix de seuillage ou null si annulé
+     */
+    private SeuillageChoice demanderChoixSeuillage() {
+        List<String> types = Arrays.asList("Seuillage dur", "Seuillage doux");
+        ChoiceDialog<String> typeDialog = new ChoiceDialog<>("Seuillage dur", types);
+        typeDialog.setTitle("Choix du seuillage");
+        typeDialog.setHeaderText("Sélectionnez le type de seuillage à appliquer");
+        Optional<String> typeResult = typeDialog.showAndWait();
+        if (!typeResult.isPresent()) return null;
 
-            imageDebruitee = traiterImagettes(strategie);
-            view.setDenoisedImage(imageDebruitee);
-            
-            afficherMessageCompletion(strategie, false);
-        } catch (IllegalStateException e) {
-            view.showError(e.getMessage());
-        }
+        List<String> methodes = Arrays.asList("Seuil universel (VisuShrink)", "Seuil bayésien (BayesShrink)");
+        ChoiceDialog<String> methodeDialog = new ChoiceDialog<>("Seuil universel (VisuShrink)", methodes);
+        methodeDialog.setTitle("Choix de la méthode de seuil");
+        methodeDialog.setHeaderText("Sélectionnez comment calculer le seuil");
+        Optional<String> methodeResult = methodeDialog.showAndWait();
+        if (!methodeResult.isPresent()) return null;
+
+        return new SeuillageChoice(
+            typeResult.get().equals("Seuillage dur"),
+            methodeResult.get().contains("universel")
+        );
     }
 
-    // Méthodes de validation
-    private void validerPreconditionsPourDebruitageGlobal() {
-        if (vecteurPatch == null || canauxACP == null) {
-            throw new IllegalStateException("Veuillez d'abord extraire les patchs");
-        }
-    }
-
-    private void validerPreconditionsPourDebruitageLocal() {
-        if (currentImagettes == null || currentImagettes.isEmpty()) {
-            throw new IllegalStateException("Veuillez d'abord découper l'image en imagettes");
-        }
-    }
-
-    // Sélection de la stratégie de seuillage
-    private StrategieSeuillage obtenirStrategieSeuillageDepuisUtilisateur() {
-        List<String> choix = Arrays.asList("Seuillage dur", "Seuillage doux");
-        ChoiceDialog<String> dialogue = new ChoiceDialog<>("Seuillage dur", choix);
-        dialogue.setTitle("Choix du seuillage");
-        dialogue.setHeaderText("Sélectionnez le type de seuillage à appliquer");
-        dialogue.setContentText("Méthode:");
-
-        Optional<String> resultat = dialogue.showAndWait();
-        if (!resultat.isPresent()) return null;
-
-        return resultat.get().equals("Seuillage dur") 
-            ? new StrategieSeuillageDur() 
-            : new StrategieSeuillageDoux();
-    }
-
-    // Traitement des canaux pour le débruitage global
-    private void traiterTousLesCanaux(StrategieSeuillage strategie, boolean isGlobal) {
+    /**
+     * Traite tous les canaux couleur avec ACP et seuillage
+     * @param choix Le choix de seuillage
+     */
+    private void traiterTousLesCanaux(SeuillageChoice choix) {
         acpResults = new ACPResult[3];
-        String[] nomsCanaux = {"Rouge", "Vert", "Bleu"};
-        int[] composantesConservees = new int[3];
         
         for (int i = 0; i < 3; i++) {
             acpResults[i] = ACP.appliquerACP(canauxACP[i]);
-            composantesConservees[i] = determinerComposantesAConserver(acpResults[i]);
+            int composantesConservees = determinerComposantesAConserver(acpResults[i]);
             
-            double seuil = calculerSeuil(acpResults[i], composantesConservees[i], isGlobal);
-            appliquerSeuillage(strategie, acpResults[i], seuil, composantesConservees[i]);
+            double seuil = calculerSeuil(acpResults[i], composantesConservees, choix);
+            
+            double[][] alpha = Proj.calculerContributions(acpResults[i].getU(), acpResults[i].getVc());
+            double[][] alphaSeuille = appliquerSeuillage(alpha, seuil, choix);
+            acpResults[i].setAlphaSeuille(alphaSeuille);
         }
     }
 
+    /**
+     * Détermine combien de composantes principales conserver
+     * @param resultatACP Le résultat de l'ACP
+     * @return Le nombre de composantes à conserver
+     */
     private int determinerComposantesAConserver(ACPResult resultatACP) {
         double energieTotale = Arrays.stream(resultatACP.getValeursPropres()).sum();
         double energieCourante = 0;
@@ -272,45 +389,62 @@ public class DenoisingController {
         return k + 1;
     }
 
-    private double calculerSeuil(ACPResult resultatACP, int composantesConservees, boolean isGlobal) {
+    /**
+     * Calcule le seuil de bruit pour un canal
+     * @param resultatACP Le résultat de l'ACP pour le canal
+     * @param composantesConservees Nombre de composantes conservées
+     * @param choix Le choix de seuillage
+     * @return Le seuil calculé
+     */
+    private double calculerSeuil(ACPResult resultatACP, int composantesConservees, SeuillageChoice choix) {
         double[][] alpha = Proj.calculerContributions(resultatACP.getU(), resultatACP.getVc());
         double[] alphaPertinents = extraireValeursAlphaPertinentes(alpha, composantesConservees);
-        double mediane = calculerMedianeAbsolue(alphaPertinents);
         
-        return isGlobal 
-            ? mediane * FACTEUR_SEUIL_GLOBAL
-            : mediane * FACTEUR_SEUIL_LOCAL;
-    }
-
-    private double[] extraireValeursAlphaPertinentes(double[][] alpha, int composantesConservees) {
-        List<Double> valeurs = new ArrayList<>();
-        for (double[] ligne : alpha) {
-            for (int j = 0; j < composantesConservees && j < ligne.length; j++) {
-                valeurs.add(ligne[j]);
-            }
+        if (choix.estUniversel) {
+            // VisuShrink avec ajustement
+            int L = alphaPertinents.length;
+            double seuilBase = Seuillage.seuilleV(sigmaBruit, L);
+            return choix.estDur ? seuilBase * 1.2 : seuilBase;
+        } else {
+            // BayesShrink avec ajustement
+            double sigmaXb2 = calculerVariance(alphaPertinents);
+            double seuilBase = Seuillage.seuilleB(sigmaBruit*sigmaBruit, sigmaXb2);
+            return choix.estDur ? seuilBase * 1.1 : seuilBase;
         }
-        return valeurs.stream().mapToDouble(Double::doubleValue).toArray();
     }
 
-    private void appliquerSeuillage(StrategieSeuillage strategie, ACPResult resultatACP, double seuil, int composantesConservees) {
-        double[][] alpha = Proj.calculerContributions(resultatACP.getU(), resultatACP.getVc());
-        double[][] alphaSeuille = new double[alpha.length][alpha[0].length];
-        
-        for (int m = 0; m < alpha.length; m++) {
-            for (int n = 0; n < alpha[m].length; n++) {
-                if (n < composantesConservees) {
-                    alphaSeuille[m][n] = strategie.appliquerSeuil(alpha[m][n], seuil);
-                } else {
-                    alphaSeuille[m][n] = 0;
-                }
-            }
+    /**
+     * Applique le seuillage aux coefficients alpha
+     * @param alpha Les coefficients alpha
+     * @param seuil Le seuil à appliquer
+     * @param choix Le choix de seuillage
+     * @return Les coefficients alpha après seuillage
+     */
+    private double[][] appliquerSeuillage(double[][] alpha, double seuil, SeuillageChoice choix) {
+        if (choix.estDur) {
+            return Seuillage.seuillageDur(alpha, seuil * 1.2);
+        } else {
+            return Seuillage.seuillageDoux(alpha, seuil);
         }
-        
-        // Stockage de l'alpha seuillé dans le résultat ACP
-        resultatACP.setAlphaSeuille(alphaSeuille);
     }
 
-    // Reconstruction de l'image
+    /**
+     * Calcule la variance d'un ensemble de valeurs
+     * @param valeurs Les valeurs à analyser
+     * @return La variance calculée
+     */
+    private double calculerVariance(double[] valeurs) {
+        double moyenne = Arrays.stream(valeurs).average().orElse(0);
+        return Arrays.stream(valeurs)
+                   .map(v -> (v - moyenne) * (v - moyenne))
+                   .average()
+                   .orElse(0);
+    }
+
+    /**
+     * Reconstruit l'image à partir des canaux traités
+     * @return L'image reconstruite
+     */
     private BufferedImage reconstruireImage() {
         double[][][] canauxReconstruits = new double[3][][];
         
@@ -324,9 +458,9 @@ public class DenoisingController {
         
         ReconstructionService service = new ReconstructionService();
         return service.reconstruireImageDepuisACP(
-            canauxReconstruits[0], // Rouge
-            canauxReconstruits[1], // Vert
-            canauxReconstruits[2], // Bleu
+            canauxReconstruits[0],
+            canauxReconstruits[1],
+            canauxReconstruits[2],
             vecteurPatch.getVecteurs(),
             imageOriginale.getWidth(),
             imageOriginale.getHeight(),
@@ -334,8 +468,27 @@ public class DenoisingController {
         );
     }
 
-    // Traitement par imagettes pour le débruitage local
-    private BufferedImage traiterImagettes(StrategieSeuillage strategie) {
+    /**
+     * Effectue le débruitage en mode local (par imagettes)
+     */
+    private void effectuerDebruitageLocal() {
+        validerPreconditionsPourDebruitageLocal();
+        
+        SeuillageChoice choix = demanderChoixSeuillage();
+        if (choix == null) return;
+
+        imageDebruitee = traiterImagettes(choix);
+        view.setDenoisedImage(imageDebruitee);
+        
+        afficherMessageCompletion(choix, false);
+    }
+
+    /**
+     * Traite toutes les imagettes pour le débruitage local
+     * @param choix Le choix de seuillage
+     * @return L'image débruitée reconstruite
+     */
+    private BufferedImage traiterImagettes(SeuillageChoice choix) {
         int taillePatch = view.getPatchSize();
         int pas = view.getPatchStep();
         BufferedImage imageResultat = new BufferedImage(
@@ -345,7 +498,7 @@ public class DenoisingController {
         );
 
         for (Imagette imagette : currentImagettes) {
-            BufferedImage imagetteDebruitee = traiterImagette(imagette, strategie, taillePatch, pas);
+            BufferedImage imagetteDebruitee = traiterImagette(imagette, choix, taillePatch, pas);
             Point position = imagette.getPosition();
             
             Graphics2D g = imageResultat.createGraphics();
@@ -356,7 +509,15 @@ public class DenoisingController {
         return imageResultat;
     }
 
-    private BufferedImage traiterImagette(Imagette imagette, StrategieSeuillage strategie, int taillePatch, int pas) {
+    /**
+     * Traite une imagette individuelle
+     * @param imagette L'imagette à traiter
+     * @param choix Le choix de seuillage
+     * @param taillePatch La taille des patchs
+     * @param pas Le pas d'extraction des patchs
+     * @return L'imagette débruitée
+     */
+    private BufferedImage traiterImagette(Imagette imagette, SeuillageChoice choix, int taillePatch, int pas) {
         BufferedImage img = imagette.getImage();
         ArrayList<ArrayList<Patch>> patches = ExtracteurPatch.extractPatchs(img, pas, taillePatch);
         VecteurPatch vp = new VecteurPatch();
@@ -372,12 +533,14 @@ public class DenoisingController {
         for (int i = 0; i < 3; i++) {
             ACPResult resultat = ACP.appliquerACP(canaux[i]);
             int composantesConservees = determinerComposantesAConserver(resultat);
-            double seuil = calculerSeuil(resultat, composantesConservees, false);
+            double seuil = calculerSeuil(resultat, composantesConservees, choix);
             
-            appliquerSeuillage(strategie, resultat, seuil, composantesConservees);
+            double[][] alpha = Proj.calculerContributions(resultat.getU(), resultat.getVc());
+            double[][] alphaSeuille = appliquerSeuillage(alpha, seuil, choix);
+            resultat.setAlphaSeuille(alphaSeuille);
             
             canauxReconstruits[i] = Reconstruction.reconstruireVecteurs(
-                resultat.getAlphaSeuille(),
+                alphaSeuille,
                 resultat.getU(),
                 resultat.getmV()
             );
@@ -385,9 +548,9 @@ public class DenoisingController {
         
         ReconstructionService service = new ReconstructionService();
         return service.reconstruireImageDepuisACP(
-            canauxReconstruits[0], // Rouge
-            canauxReconstruits[1], // Vert
-            canauxReconstruits[2], // Bleu
+            canauxReconstruits[0],
+            canauxReconstruits[1],
+            canauxReconstruits[2],
             vp.getVecteurs(),
             img.getWidth(),
             img.getHeight(),
@@ -395,7 +558,9 @@ public class DenoisingController {
         );
     }
 
-    // Comparaison de qualité
+    /**
+     * Compare la qualité entre l'image originale et l'image débruitée
+     */
     private void comparerQualiteImages() {
         if (view.getDenoisedImage() == null || imageOriginale == null) {
             view.showError("Impossible de comparer la qualité - aucune image débruitée disponible");
@@ -409,6 +574,11 @@ public class DenoisingController {
         view.showQualityReport(rapportQualite);
     }
 
+    /**
+     * Convertit une BufferedImage en matrice de pixels
+     * @param image L'image à convertir
+     * @return La matrice de pixels correspondante
+     */
     private Pixel[][] convertirEnMatricePixels(BufferedImage image) {
         int largeur = image.getWidth();
         int hauteur = image.getHeight();
@@ -423,25 +593,42 @@ public class DenoisingController {
         return pixels;
     }
 
-    // Méthodes utilitaires
-    private double calculerMedianeAbsolue(double[] valeurs) {
-        double[] valeursAbsolues = Arrays.stream(valeurs).map(Math::abs).toArray();
-        Arrays.sort(valeursAbsolues);
-        
-        int longueur = valeursAbsolues.length;
-        if (longueur % 2 == 0) {
-            return (valeursAbsolues[longueur / 2 - 1] + valeursAbsolues[longueur / 2]) / 2.0;
-        } else {
-            return valeursAbsolues[longueur / 2];
+    /**
+     * Valide les préconditions pour le débruitage global
+     * @throws IllegalStateException Si les préconditions ne sont pas remplies
+     */
+    private void validerPreconditionsPourDebruitageGlobal() {
+        if (vecteurPatch == null || canauxACP == null) {
+            throw new IllegalStateException("Veuillez d'abord extraire les patchs");
         }
     }
 
-    private void afficherMessageCompletion(StrategieSeuillage strategie, boolean isGlobal) {
-        String methode = isGlobal ? "Global" : "Local";
-        String nomStrategie = strategie instanceof StrategieSeuillageDur ? "dur" : "doux";
-        view.showError("Débruitage " + methode.toLowerCase() + " terminé (seuillage " + nomStrategie + ")");
+    /**
+     * Valide les préconditions pour le débruitage local
+     * @throws IllegalStateException Si les préconditions ne sont pas remplies
+     */
+    private void validerPreconditionsPourDebruitageLocal() {
+        if (currentImagettes == null || currentImagettes.isEmpty()) {
+            throw new IllegalStateException("Veuillez d'abord découper l'image en imagettes");
+        }
     }
 
+    /**
+     * Affiche un message de complétion du débruitage
+     * @param choix Le choix de seuillage
+     * @param isGlobal Si le mode était global ou local
+     */
+    private void afficherMessageCompletion(SeuillageChoice choix, boolean isGlobal) {
+        String methode = isGlobal ? "Global" : "Local";
+        String nomStrategie = choix.estDur ? "dur" : "doux";
+        String methodeSeuil = choix.estUniversel ? "universel (VisuShrink)" : "bayésien (BayesShrink)";
+        view.showError("Débruitage " + methode.toLowerCase() + " terminé (seuillage " + nomStrategie + 
+                      " avec méthode " + methodeSeuil + ")");
+    }
+
+    /**
+     * Découpe l'image en imagettes selon le nombre de divisions spécifié
+     */
     private void decouperImage() {
         try {
             if (imageOriginale == null) {
@@ -479,6 +666,13 @@ public class DenoisingController {
         }
     }
 
+    /**
+     * Redimensionne une image aux dimensions spécifiées
+     * @param imageOriginale L'image originale
+     * @param targetWidth La largeur cible
+     * @param targetHeight La hauteur cible
+     * @return L'image redimensionnée
+     */
     private BufferedImage redimensionnerImage(BufferedImage imageOriginale, int targetWidth, int targetHeight) {
         BufferedImage imageRedimensionnee = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = imageRedimensionnee.createGraphics();
@@ -488,22 +682,33 @@ public class DenoisingController {
         return imageRedimensionnee;
     }
 
-    // Pattern stratégie pour le seuillage
-    private interface StrategieSeuillage {
-        double appliquerSeuil(double valeur, double seuil);
-    }
-
-    private static class StrategieSeuillageDur implements StrategieSeuillage {
-        @Override
-        public double appliquerSeuil(double valeur, double seuil) {
-            return Math.abs(valeur) >= seuil ? valeur : 0.0;
+    /**
+     * Calcule la médiane absolue d'un tableau de valeurs
+     * @param valeurs Les valeurs à analyser
+     * @return La médiane absolue
+     */
+    private double calculerMedianeAbsolue(double[] valeurs) {
+        double[] valeursAbsolues = Arrays.stream(valeurs).map(Math::abs).toArray();
+        Arrays.sort(valeursAbsolues);
+        
+        int longueur = valeursAbsolues.length;
+        if (longueur % 2 == 0) {
+            return (valeursAbsolues[longueur / 2 - 1] + valeursAbsolues[longueur / 2]) / 2.0;
+        } else {
+            return valeursAbsolues[longueur / 2];
         }
     }
 
-    private static class StrategieSeuillageDoux implements StrategieSeuillage {
-        @Override
-        public double appliquerSeuil(double valeur, double seuil) {
-            return Math.signum(valeur) * Math.max(Math.abs(valeur) - seuil, 0);
+    /**
+     * Classe interne pour représenter le choix de seuillage
+     */
+    private static class SeuillageChoice {
+        final boolean estDur;
+        final boolean estUniversel;
+
+        SeuillageChoice(boolean estDur, boolean estUniversel) {
+            this.estDur = estDur;
+            this.estUniversel = estUniversel;
         }
     }
 }

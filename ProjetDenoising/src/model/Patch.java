@@ -2,60 +2,82 @@ package model;
 
 import java.awt.Image;
 
+/**
+ * Représente un patch (une petite portion) d'image,
+ * avec sa matrice de pixels et sa position.
+ */
 public class Patch {
     private Image image;
     private Pixel[][] matrice;
-    private int taille;
-    private int[] position;
-    private int[] premierPixelPos;
+    private int taille; // taille totale = h * w
+    private int[] position;       // position dans l'image globale (optionnelle)
+    private int[] premierPixelPos; // position du premier pixel du patch dans l'image globale
 
+    /**
+     * Constructeur par défaut, initialise premierPixelPos à un tableau de taille 2.
+     */
     public Patch() {
         this.premierPixelPos = new int[2];
     }
 
+    // Getters et setters
+
     public Image getImage() {
-        return this.image;
-    }
-
-    public Pixel[][] getMatrice() {
-        return this.matrice;
-    }
-
-    public int getTaille() {
-        return this.taille;
-    }
-
-    public void setTaille(int taille) {
-        this.taille = taille;
+        return image;
     }
 
     public void setImage(Image image) {
         this.image = image;
     }
 
+    public Pixel[][] getMatrice() {
+        return matrice;
+    }
+
+    /**
+     * Définit la matrice de pixels et met à jour la taille (hauteur * largeur).
+     * 
+     * @param matrice Matrice de pixels du patch (doit être rectangulaire)
+     */
     public void setMatrice(Pixel[][] matrice) {
         this.matrice = matrice;
-        this.taille = matrice.length * matrice[0].length;
+        if (matrice != null && matrice.length > 0 && matrice[0] != null) {
+            this.taille = matrice.length * matrice[0].length;
+        } else {
+            this.taille = 0;
+        }
     }
 
-    public void setPremierPixelPos(int[] premierPixelPos) {
-        this.premierPixelPos = premierPixelPos;
+    public int getTaille() {
+        return taille;
     }
 
-    public int[] getPremierPixelPos() {
-        return this.premierPixelPos;
+    public int[] getPosition() {
+        return position;
     }
 
     public void setPosition(int[] position) {
         this.position = position;
     }
 
-    public int[] getPosition() {
-        return this.position;
+    public int[] getPremierPixelPos() {
+        return premierPixelPos;
     }
 
-    // ✅ Ajout : extraire un canal
+    public void setPremierPixelPos(int[] premierPixelPos) {
+        this.premierPixelPos = premierPixelPos;
+    }
+
+    /**
+     * Extrait les valeurs du canal spécifié ("R", "G" ou "B") dans un vecteur à une dimension.
+     * 
+     * @param canal Le canal de couleur à extraire ("R", "G", "B")
+     * @return Un tableau de double contenant les valeurs du canal dans l'ordre ligne par ligne
+     */
     public double[] extraireCanal(String canal) {
+        if (matrice == null || matrice.length == 0 || matrice[0].length == 0) {
+            return new double[0];
+        }
         int h = matrice.length;
         int w = matrice[0].length;
         double[] vecteur = new double[h * w];

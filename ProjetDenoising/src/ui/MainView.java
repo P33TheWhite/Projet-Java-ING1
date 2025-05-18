@@ -1,4 +1,3 @@
-// (en-tête et imports identiques)
 package ui;
 
 import javafx.embed.swing.SwingFXUtils;
@@ -22,17 +21,18 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public class MainView {
+    // Déclaration des composants de l'interface
     private final Stage stage;
     private final ImageView originalView = new ImageView();
     private final ImageView noisyView = new ImageView();
-    private final Slider noiseSlider = new Slider(0, 30, 10);
+    private final Slider noiseSlider = new Slider(0, 30, 10); 
     private final TextField divisionsField = new TextField("4");
     private final Button saveButton = new Button("Enregistrer l'image bruitée");
     private final Button cutButton = new Button("Découper l'image");
     private final Label errorLabel = new Label();
     private final TilePane imagettesPane = new TilePane();
     private final ScrollPane imagettesScrollPane = new ScrollPane();
-    private VBox imagetteBlock; // ✅ bloc imagettes à masquer
+    private VBox imagetteBlock;
     private final ComboBox<Integer> patchSizeCombo = new ComboBox<>();
     private final ComboBox<Integer> patchStepCombo = new ComboBox<>();
     private final Button extractPatchesButton = new Button("Extraire les patchs");
@@ -49,13 +49,20 @@ public class MainView {
     private Runnable onDenoiseRequested;
     private final TextArea qualityReportArea = new TextArea();
 
+    /**
+     * Constructeur de la vue principale
+     * @param stage La fenêtre principale de l'application
+     */
     public MainView(Stage stage) {
         this.stage = stage;
         setupUI();
     }
 
+    /**
+     * Initialise l'interface utilisateur et configure les composants
+     */
     private void setupUI() {
-        stage.setTitle("Découpe d'images par ACP");
+        stage.setTitle("Débruitage d'images par ACP");
 
         Button selectImage = new Button("Choisir une image");
         selectImage.setOnAction(e -> {
@@ -179,7 +186,7 @@ public class MainView {
 
         VBox mainContent = new VBox(10,
             selectImage,
-            new Label("Niveau de bruit:"),
+            new Label("Niveau de bruit (0-30):"),
             noiseSlider,
             new HBox(10, saveButton),
             decoupeControls,
@@ -202,7 +209,7 @@ public class MainView {
         mainScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
 
         errorLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
-        stage.setScene(new Scene(mainScrollPane, 800, 700));
+        stage.setScene(new Scene(mainScrollPane, 1000, 800));
         stage.setMinWidth(1000);
         stage.setMinHeight(800);
         extractPatchesButton.setOnAction(e -> {
@@ -212,6 +219,11 @@ public class MainView {
         });
     }
 
+    /**
+     * Définit les tailles de patch possibles en fonction des dimensions de l'image
+     * @param imageWidth Largeur de l'image
+     * @param imageHeight Hauteur de l'image
+     */
     public void setPossiblePatchSizes(int imageWidth, int imageHeight) {
         patchSizeCombo.getItems().clear();
         patchStepCombo.getItems().clear();
@@ -229,6 +241,9 @@ public class MainView {
         );
     }
 
+    /**
+     * Met à jour les pas possibles en fonction de la taille de patch sélectionnée
+     */
     private void updatePossibleSteps() {
         Integer selectedSize = patchSizeCombo.getValue();
         if (selectedSize == null) return;
@@ -242,11 +257,39 @@ public class MainView {
         patchStepCombo.getSelectionModel().selectFirst();
     }
 
+    /**
+     * Affiche la fenêtre principale
+     */
     public void show() { stage.show(); }
+    
+    /**
+     * Récupère le nombre de divisions demandé
+     * @return Le nombre de divisions
+     */
     public int getNombreDivisions() { return Integer.parseInt(divisionsField.getText()); }
+    
+    /**
+     * Récupère la taille de patch sélectionnée
+     * @return La taille de patch
+     */
     public int getPatchSize() { return patchSizeCombo.getValue() != null ? patchSizeCombo.getValue() : 8; }
+    
+    /**
+     * Récupère le pas de patch sélectionné
+     * @return Le pas de patch
+     */
     public int getPatchStep() { return patchStepCombo.getValue() != null ? patchStepCombo.getValue() : 4; }
+    
+    /**
+     * Récupère le niveau de bruit sélectionné
+     * @return Le niveau de bruit
+     */
+    public double getNoiseLevel() { return noiseSlider.getValue(); }
 
+    /**
+     * Affiche les patchs extraits dans l'interface
+     * @param allPatches Liste des patchs à afficher
+     */
     public void displayPatches(List<ArrayList<ArrayList<Patch>>> allPatches) {
         patchesPane.getChildren().clear();
         for (List<ArrayList<Patch>> imagettePatches : allPatches) {
@@ -265,13 +308,17 @@ public class MainView {
         }
     }
 
+    // Setters pour les handlers d'événements
     public void setOnExtractPatchesRequested(Runnable handler) { this.onExtractPatchesRequested = handler; }
-    public double getNoiseLevel() { return noiseSlider.getValue(); }
     public void setOriginalImage(BufferedImage image) { originalView.setImage(SwingFXUtils.toFXImage(image, null)); }
     public void setNoisyImage(BufferedImage image) { noisyView.setImage(SwingFXUtils.toFXImage(image, null)); }
     public void setOnDenoiseRequested(Runnable handler) { this.onDenoiseRequested = handler; }
     public void setDenoisedImage(BufferedImage image) { denoisedView.setImage(SwingFXUtils.toFXImage(image, null)); }
 
+    /**
+     * Affiche les imagettes générées
+     * @param imagettes Liste des imagettes à afficher
+     */
     public void displayImagettes(List<Imagette> imagettes) {
         imagettesPane.getChildren().clear();
         for (Imagette imagette : imagettes) {
@@ -282,17 +329,39 @@ public class MainView {
         }
     }
 
+    // Setters pour les handlers d'événements
     public void setOnImageSelected(Consumer<File> handler) { this.onImageSelected = handler; }
     public void setOnNoiseChanged(Consumer<Double> handler) { this.onNoiseChanged = handler; }
     public void setOnSaveRequested(Consumer<File> handler) { this.onSaveRequested = handler; }
     public void setOnCutRequested(Runnable handler) { this.onCutRequested = handler; }
 
+    /**
+     * Active/désactive le bouton d'enregistrement
+     * @param enabled true pour activer, false pour désactiver
+     */
     public void enableSave(boolean enabled) { saveButton.setDisable(!enabled); }
+    
+    /**
+     * Active/désactive le bouton de découpe
+     * @param enabled true pour activer, false pour désactiver
+     */
     public void enableCut(boolean enabled) { cutButton.setDisable(!enabled); }
+    
+    /**
+     * Active/désactive le bouton de débruitage
+     * @param enabled true pour activer, false pour désactiver
+     */
     public void enableDenoise(boolean enabled) { denoiseButton.setDisable(!enabled); }
 
+    /**
+     * Affiche un message d'erreur
+     * @param message Le message d'erreur à afficher
+     */
     public void showError(String message) { errorLabel.setText(message); }
 
+    /**
+     * Active le mode global de traitement (sans découpe en imagettes)
+     */
     public void lancerModeGlobal() {
         decoupeControls.setVisible(false);
         decoupeControls.setManaged(false);
@@ -304,6 +373,9 @@ public class MainView {
         showError("Mode global : pas de découpe en imagettes. Choisissez une image, appliquez du bruit, puis extrayez les patchs.");
     }
 
+    /**
+     * Active le mode local de traitement (avec découpe en imagettes)
+     */
     public void lancerModeLocal() {
         decoupeControls.setVisible(true);
         decoupeControls.setManaged(true);
@@ -314,9 +386,19 @@ public class MainView {
         denoiseButton.setDisable(true);
         showError("Mode local : découpez en imagettes avant d'extraire les patchs.");
     }
+
+    /**
+     * Affiche le rapport de qualité du débruitage
+     * @param report Le rapport à afficher
+     */
     public void showQualityReport(String report) {
         qualityReportArea.setText(report);
     }
+
+    /**
+     * Récupère l'image débruitée affichée
+     * @return L'image débruitée sous forme de BufferedImage
+     */
     public BufferedImage getDenoisedImage() {
         javafx.scene.image.Image fxImage = denoisedView.getImage();
         if (fxImage == null) {
@@ -324,5 +406,4 @@ public class MainView {
         }
         return SwingFXUtils.fromFXImage(fxImage, null);
     }
-
 }
