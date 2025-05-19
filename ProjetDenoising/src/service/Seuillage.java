@@ -66,7 +66,7 @@ public class Seuillage {
      * @param L Nombre total de pixels dans l'image (taille du signal)
      * @return Seuil universel
      */
-    public static double seuilleV(double sigma, int L) {
+    public static double seuilV(double sigma, int L) {
         return sigma * Math.sqrt(2 * Math.log(L));
     }
 
@@ -79,7 +79,7 @@ public class Seuillage {
      * @param sigmaXb2 Variance estimée du signal bruité (ˆσ²_Xb)
      * @return Seuil bayésien
      */
-    public static double seuilleB(double sigma2, double sigmaXb2) {
+    public static double seuilB(double sigma2, double sigmaXb2) {
         double sigmaX = Math.sqrt(Math.max(sigmaXb2 - sigma2, 0));
         if (sigmaX == 0) {
             return Double.MAX_VALUE; // Cas extrême : seuil très élevé

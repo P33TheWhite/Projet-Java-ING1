@@ -239,14 +239,8 @@ public class DenoisingController {
             }
         }
 
-        // 3. Si l'utilisateur n'a pas précisé de bruit mais a uploadé une image avec bruit généré
-        if (view.getNoiseLevel() == 0 && imageOriginale != null && imageBruitee != null) {
-            sigmaBruit = estimerBruitParDifference();
-            return;
-        }
-
-        // 4. Estimation robuste par différence locale (fallback)
-        if (imageBruitee != null) {
+        // 3. Nouvelle estimation automatique sur image bruitée uniquement (sans image originale)
+        if (view.getNoiseLevel() == 0 && imageBruitee != null) {
             try {
                 sigmaBruit = EstimationBruit.estimerSigma(imageBruitee);
                 if (sigmaBruit < 2.0) {
@@ -254,42 +248,12 @@ public class DenoisingController {
                 }
                 return;
             } catch (Exception e) {
-                System.err.println("Erreur dans l'estimation pixel du bruit: " + e.getMessage());
+                System.err.println("Erreur dans l'estimation locale du bruit: " + e.getMessage());
             }
         }
 
-        // 5. Fallback final
+        // 4. Fallback final
         sigmaBruit = 10.0;
-    }
-
-    /**
-     * Estime le bruit par différence entre l'image originale et bruitée
-     * @return Le niveau de bruit estimé
-     */
-    private double estimerBruitParDifference() {
-        int width = Math.min(imageOriginale.getWidth(), imageBruitee.getWidth());
-        int height = Math.min(imageOriginale.getHeight(), imageBruitee.getHeight());
-        double sum = 0;
-        int count = 0;
-
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                Color original = new Color(imageOriginale.getRGB(x, y));
-                Color noisy = new Color(imageBruitee.getRGB(x, y));
-                
-                // Différence RMS sur les 3 canaux
-                double diff = Math.sqrt(
-                    Math.pow(original.getRed() - noisy.getRed(), 2) +
-                    Math.pow(original.getGreen() - noisy.getGreen(), 2) +
-                    Math.pow(original.getBlue() - noisy.getBlue(), 2)
-                );
-                sum += diff;
-                count++;
-            }
-        }
-
-        double rms = sum / (count * Math.sqrt(3)); // Normalisation
-        return rms / 0.6745; // Conversion approximative en sigma
     }
     
     /**
@@ -403,12 +367,12 @@ public class DenoisingController {
         if (choix.estUniversel) {
             // VisuShrink avec ajustement
             int L = alphaPertinents.length;
-            double seuilBase = Seuillage.seuilleV(sigmaBruit, L);
+            double seuilBase = Seuillage.seuilV(sigmaBruit, L);
             return choix.estDur ? seuilBase * 1.2 : seuilBase;
         } else {
             // BayesShrink avec ajustement
             double sigmaXb2 = calculerVariance(alphaPertinents);
-            double seuilBase = Seuillage.seuilleB(sigmaBruit*sigmaBruit, sigmaXb2);
+            double seuilBase = Seuillage.seuilB(sigmaBruit*sigmaBruit, sigmaXb2);
             return choix.estDur ? seuilBase * 1.1 : seuilBase;
         }
     }
