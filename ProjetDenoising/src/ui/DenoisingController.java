@@ -284,7 +284,7 @@ public class DenoisingController {
         estimerSigmaBruit();
         traiterTousLesCanaux(choix);
         
-        imageDebruitee = reconstruireImage();
+        imageDebruitee = imageDen();
         view.setDenoisedImage(imageDebruitee);
         
         afficherMessageCompletion(choix, true);
@@ -323,7 +323,7 @@ public class DenoisingController {
         acpResults = new ACPResult[3];
         
         for (int i = 0; i < 3; i++) {
-            acpResults[i] = ACP.appliquerACP(canauxACP[i]);
+            acpResults[i] = ACP.moyCov(canauxACP[i]);
             int composantesConservees = determinerComposantesAConserver(acpResults[i]);
             
             double seuil = calculerSeuil(acpResults[i], composantesConservees, choix);
@@ -409,7 +409,7 @@ public class DenoisingController {
      * Reconstruit l'image à partir des canaux traités
      * @return L'image reconstruite
      */
-    private BufferedImage reconstruireImage() {
+    private BufferedImage imageDen() {
         double[][][] canauxReconstruits = new double[3][][];
         
         for (int i = 0; i < 3; i++) {
@@ -495,7 +495,7 @@ public class DenoisingController {
         double[][][] canauxReconstruits = new double[3][][];
         
         for (int i = 0; i < 3; i++) {
-            ACPResult resultat = ACP.appliquerACP(canaux[i]);
+            ACPResult resultat = ACP.moyCov(canaux[i]);
             int composantesConservees = determinerComposantesAConserver(resultat);
             double seuil = calculerSeuil(resultat, composantesConservees, choix);
             

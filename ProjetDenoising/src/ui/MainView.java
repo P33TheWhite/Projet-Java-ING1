@@ -124,7 +124,7 @@ public class MainView {
         });
         
         denoisedView.setFitWidth(300);
-        denoisedView.setFitHeight(250);
+        denoisedView.setFitHeight(300);
         denoisedView.setPreserveRatio(true);
         denoisedView.setSmooth(true);
         

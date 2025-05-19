@@ -16,7 +16,7 @@ public class ACP {
      * @param V Matrice de données (M lignes × N colonnes), où chaque ligne est un vecteur d'observation.
      * @return Résultat de l'ACP : vecteur moyen, matrice centrée, valeurs propres et vecteurs propres.
      */
-    public static ACPResult appliquerACP(double[][] V) {
+    public static ACPResult moyCov(double[][] V) {
         int M = V.length;         // Nombre de vecteurs
         int N = V[0].length;      // Dimension des vecteurs
 

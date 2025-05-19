@@ -68,7 +68,7 @@ public class ExtracteurPatch {
                 patch.setImage(image.getSubimage(x, y, taillePatch, taillePatch));
                 patch.setPremierPixelPos(new int[]{x, y});  // position absolue du premier pixel
                 patch.setPosition(new int[]{x, y});  // position absolue du patch dans l'image
- // position dans la grille
+                 // position dans la grille
                  // patch.setS(pas);  // facultatif mais utile
 
                 lignePatchs.add(patch);
