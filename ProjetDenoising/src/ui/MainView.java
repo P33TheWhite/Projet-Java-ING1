@@ -3,6 +3,7 @@ package ui;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.scene.control.*;
@@ -10,6 +11,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import model.Imagette;
 import model.Patch;
@@ -48,6 +50,7 @@ public class MainView {
     private final Button denoiseButton = new Button("Débruiter l'image");
     private Runnable onDenoiseRequested;
     private final TextArea qualityReportArea = new TextArea();
+    
 
     /**
      * Constructeur de la vue principale
@@ -392,8 +395,13 @@ public class MainView {
      * @param report Le rapport à afficher
      */
     public void showQualityReport(String report) {
+        qualityReportArea.setWrapText(true); 
         qualityReportArea.setText(report);
+        // Fixe la hauteur idéale pour afficher 4 lignes
+        qualityReportArea.setPrefRowCount(4); 
+        qualityReportArea.setPrefWidth(80); 
     }
+
 
     /**
      * Récupère l'image débruitée affichée
