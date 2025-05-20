@@ -1,11 +1,7 @@
 package ui;
 
-import javafx.stage.Stage;
 import model.*;
 import service.*;
-import org.apache.commons.math3.linear.*;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 
 import javax.imageio.ImageIO;
@@ -15,8 +11,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class DenoisingController {
     // Constantes optimisées

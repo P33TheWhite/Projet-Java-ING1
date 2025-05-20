@@ -25,13 +25,7 @@ public class ReconstructionService {
      * @param taillePatch      Taille (largeur=hauteur) de chaque patch carré
      * @return BufferedImage reconstruite à partir des patches et de leurs positions
      */
-    public BufferedImage reconstruireImageDepuisACP(double[][] canalRReconstruit, 
-                                                    double[][] canalGReconstruit, 
-                                                    double[][] canalBReconstruit, 
-                                                    List<Vector> vecteurs, 
-                                                    int largeurImage, 
-                                                    int hauteurImage, 
-                                                    int taillePatch) {
+    public BufferedImage reconstruireImageDepuisACP(double[][] canalRReconstruit, double[][] canalGReconstruit, double[][] canalBReconstruit, List<Vector> vecteurs, int largeurImage, int hauteurImage, int taillePatch) {
         BufferedImage image = new BufferedImage(largeurImage, hauteurImage, BufferedImage.TYPE_INT_RGB);
 
         // Compteurs pour gérer les chevauchements de patches
