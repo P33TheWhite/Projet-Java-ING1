@@ -1,0 +1,355 @@
+@startuml Projet Denoising
+package "model"{
+    class Imagette {
+        - image : BufferedImage
+        - position : Point
+
+        + Imagette(image : BufferedImage, position : Point)
+        + getImage() : BufferedImage
+        + getPosition() : Point
+    }
+
+
+    class Patch {
+        - image : Image
+        - matrice : Pixel[][]
+        - taille : int
+        - position : int[]
+        - premierPixelPos : int[]
+
+        + Patch()
+        + getImage() : Image
+        + setImage(image : Image) : void
+        + getMatrice() : Pixel[][]
+        + setMatrice(matrice : Pixel[][]) : void
+        + getTaille() : int
+        + getPosition() : int[]
+        + setPosition(position : int[]) : void
+        + getPremierPixelPos() : int[]
+        + setPremierPixelPos(premierPixelPos : int[]) : void
+        + extraireCanal(canal : String) : double[]
+    }
+
+    class Photo {
+        - bufferedImage : BufferedImage
+        - largeur : int
+        - hauteur : int
+        - nom : String
+        - matrice : Pixel[][]
+        - variance : int
+
+        + Photo(image : BufferedImage, largeur : int, hauteur : int)
+        + Photo(image : BufferedImage, largeur : int, hauteur : int, matrice : Pixel[][])
+        + getImage() : BufferedImage
+        + getLargeur() : int
+        + getHauteur() : int
+        + getNom() : String
+        + getMatrice() : Pixel[][]
+        + getVariance() : int
+        + setVariance(variance : int) : void
+    }
+
+
+    class "Pixel"{
+        -rouge : int
+        -vert : int
+        -bleu : int
+        -estSuperpose : boolean
+        +Pixel(rouge : int,vert : int,bleu : int)
+        +getRouge() : int
+        +getVert() : int
+        +getBleu() : int
+        +isSuperpose() : boolean
+        + setRouge(rouge : int) : void
+        + setVert(vert : int) : void
+        + setBleu(bleu : int) : void
+        + setSuperpose(estSuperpose : boolean) : void
+        + toRGB() : int
+        + fromRGB(rgb : int) : Pixel
+        + clamp(value : int) : int
+    }
+
+    class "Vector"{
+        -matrice : Pixel[]
+        -s2 : int
+        -premierPixelPos : int[]
+        + Vector(matrice : Pixel[], s : int, premierPixelPos : int[])
+        + getMatrice() : Pixel[]
+        + getS2() : int
+        + getPremierPixelPos() : int[]
+        + extraireCanal(canal : String) : double[]
+    }
+}
+package "service"{
+    class ACP {
+        {static} + moyCov(V : double[][]) : ACPResult
+    }
+
+    class ACPResult {
+        - mV : double[]
+        - U : double[][]
+        - Vc : double[][]
+        - valeursPropres : double[]
+        - alphaSeuille : double[][]
+
+        + getmV() : double[]
+        + setmV(mV : double[]) : void
+        + getU() : double[][]
+        + setU(U : double[][]) : void
+        + getVc() : double[][]
+        + setVc(Vc : double[][]) : void
+        + getValeursPropres() : double[]
+        + setValeursPropres(valeursPropres : double[]) : void
+        + getAlphaSeuille() : double[][]
+        + setAlphaSeuille(alphaSeuille : double[][]) : void
+    }
+
+    class Bruit {
+        - sigma : double
+
+        + Bruit()
+        + Bruit(sigma : double)
+        {static} + noising(image : Pixel[][], sigma : double) : Pixel[][]
+        + clamp(value : int) : int
+    }
+
+    class Convert {
+        {static} + convertirImageEnMatrice(photo : Photo) : Pixel[][]
+        {static} + convertirMatriceEnImage(matrice : Pixel[][]) : BufferedImage
+    }
+
+    class DecoupeImage {
+        {static} + DecoupeImage(photo : Photo, n : int) : List<Imagette>
+    }
+
+    class "EstimationBruit"{
+        {static} +estimerSigma(image : BufferedImage ) : double
+        {static} +getGray(rgb int) : int
+    }
+
+    class "ExtracteurPatch"{
+        {static} +extractPAtchs(image : NufferedImage,pas : int ,taillePatch : int ) : ArrayList<ArrayList<Patch>>
+    }
+
+    class "Proj"{
+        {static} +calculerContribution(U : double[][], Vc : double[][] ) : double[][]
+    }
+
+    class "QualiteImage"{
+        {static} -PSNR_EXCELLENT : double
+        {static} -PSNR_BON : double
+        {static} -PSNR_MOYEN : double
+        {static} - VALEUR_PIXEL_MAX : int
+        
+        {static} + calculerMSE(original : Pixel[][], traite : Pixel[][]) : double
+        {static} + calculerPSNR(mse : double) : double
+        {static} + evaluerQualiteImage(original : Pixel[][], traite : Pixel[][]) : String
+        {static} + evaluerQualite(psnr : double) : String
+        {static} + calculerErreurPixel(original : Pixel, traite : Pixel) : double
+        {static} + validerImage(original : Pixel[][], traite : Pixel[][]) : boolean
+        {static} + convertirGris(image : Pixel[][]) : double[][]
+        {static} + ecartTypeMatrice(gris : double[][]) : double
+        {static} + varianceMatrice(gris : double[][]) : double
+        {static} + moyenneAbsolue(gris : double[][]) : double
+        {static} + appliquerLaplacien(gris : double[][]) : double[][]
+        {static} + maxAbsolue(gris : double[][]) : double
+        {static} + appliquerFlou(gris : double[][]) : double[][]
+        {static} + calculerBruitMatrice(gris : double[][]) : double
+        {static} + scoreQualiteNR_IQA(image : Pixel[][]) : double
+        {static} + interpretationNR_IQA(image : Pixel[][]) : String
+    }
+
+    class "Reconstruction"{
+        {static} +ReconstruireVecteurs(alpha : double[][], U : double[][], mv : double[]) : double[][]
+
+    }
+
+    class "ReconstructionService"{
+        {static} +reconstruireImageDepuisACP(canalRReconstruit : double[][],canalGReconstruit : double[][],canalBReconstruit : double[][], vecteurs : list<Vector>,largeurImage : int, hauteurImage : int, taillePatch : int ) : BufferedImage
+    }
+
+    class "Seuillage"{
+        {static} + seuillageDur(Vcontric : double[][], seuil : double) : double[][]
+        {static} + seuilV(sigma : double, L : int) : double[][]
+        {static} + seuilB(sigma2 : double, sigmaXb2 : double) : double
+    }
+
+    class "VecteurPatch"{
+        - vecteurs : List<Vector>
+        + ajouterDepuisListe(liste : List<Vector>) : void
+        + getCanal(canal : String) : double[][]
+        + afficherExtraits(combien : int) : void
+        + getVecteurs() : List<Vector>
+    }
+
+}
+
+package "ui"{
+    class "DenoisingController"{
+        {static} - SEUIL_ENERGIE : double
+        {static} -FACTEUR_SEUIL_GLOBAL : double
+        {static} - FACTEUR_SEUIL_LOCAL : double
+        {static} - VALEUR_PIXEL_MAX : int
+        -view : MainView
+        -matriceOriginale : Pixel[][]
+        -imageBruitee : BufferedImage
+        -imageOriginale : BufferedImage
+        -imageDebruitee : BufferedImage
+        -maxDivision : int
+        -currentImagettes : List<Imagette>
+        -isModeGlobal : boolean
+        -vecteurPatch : VecteurPatch
+        -cannauxACP : double[][]
+        -acpResults : ACPResult[]
+        -sigmaBruit : double
+
+        + DenoisingController(view : MainView)
+        - initialiser() : void
+        + setModeGlobal(mode : boolean) : void
+        - gererSelectionImage(fichier : File) : void
+        - mettreAJourImageBruitee(niveauBruit : double) : void
+        - sauvegarderImageBruitee(fichierSauvegarde : File) : void
+        - extrairePatchs() : void
+        - effectuerDebruitage() : void
+        - estimerSigmaBruit() : void
+        - extraireValeursAlphaPertinantes(alpha : double[][], composantesConservees : int) : void
+        - effectuerDebruitageGlobal() : void
+        - demanderChoixSeuillage() : void
+        - traiterTousLesCanaux(choix : SeuillageChoice) : void
+        - determinerComposantesAConserver(resultatACP : ACPResult) : int
+        - calculerSeuil(resultatACP : ACPResult, composantesConservees : int, choix : SeuillageChoice) : double
+        - appliquerSeuillage(alpha : double[][], seuil : double, choix : SeuillageChoice) : double[][]
+        - calculerVariance(valeurs : double[]) : double
+        - imageDen() : BufferedImage
+        - effectuerDebruitageLocal() : void
+        - traiterImagettes(choix : SeuillageChoice) : BufferedImage
+        - traiterImagette(imagette : Imagette, choix : SeuillageChoice, taillePatch : int, pas : int) : BufferedImage
+        - comparerQualiteImage() : void
+        - convertirEnMatricePixel(image : BufferedImage) : Pixel[][]
+        - validerPreconditionsPourDebruitageGlobal() : void
+        - validerPreconditionsPourDebruitageLocal() : void
+        - afficherMessageCompletion(choix : SeuillageChoice, isGlobal : boolean) : void
+        - decouperImage() : void
+        - redimensionnerImage(imageOriginale : BufferedImage, targetWidth : int, targetHeight : int) : BufferedImage
+        - calculerMedianeAbsolue(valeurs : double[][]) : double
+    }
+
+    class DenoisingController::SeuillageChoice <<static class>>{
+        -estDur : boolean
+        -estUniversel : boolean
+        +SeuillageChoice(estDur : boolean, estUniversel : boolean)
+    }
+
+    class Application{}
+
+    class "MainApp"{
+        +start(primaryStage : Stage) : void
+        {static} +main(args : String[]) : void
+    }
+
+    class "MainView"{
+        -stage : Stage
+        -originalView : ImageView
+        -noisyView : ImageView
+        -noiseSlider : Slider
+        -divisionField : TextField
+        -saveButton : Button
+        -cutButton : Button
+        -errorLabel : Label
+        -imagettesPane : TilePane
+        -imagettesScrollPane : ScrollPane
+        -imagetteBlock : VBox
+        -patchSizeCombo : ComboBox<Integer>
+        -patchStepCombo : ComboBox<Integer>
+        -extractPatchsButton : Button
+        -patchesPane : TilePane
+        -patchesScrollPane : ScrollPane
+        -onExtractPatchesRequested :Runnable
+        -onImageSelected : Consumer<File>
+        -onNoiseChanged : Consumer<Double>
+        -onSaveRequested : Consumer<File>
+        -decoupeControls : HBox
+        -denoisedView : ImageView
+        -denoiseButton : Button
+        -onDenoiseRequested : Runnable
+        -qualityReportArea : TextArea
+
+        -setupUI() : void
+        +setPossiblePatchSizes(imageWidth : int, imageHeight : int) : void
+        -updatePossibleSteps() : void
+        +show() : void
+        +getNombreDivisions() : int
+        +getPatchSize() : int
+        +getPatchStep() : int
+        +getNoiseLevel() : double
+        +displayPatchs(allPatches : List<ArrayList<ArrayList<Patch>>>) : void
+        +setOnExtractPatchesRequested(handler : Runnable) : void
+        +setOrinalImage(image : BufferedImage) : void
+        +setNoisyImage(image : BufferedImage) : void
+        +setOnDenoiseRequested(handler : Runnable) : void
+        +setDenoisedImage(image : BufferedImage) : void
+        +displayImagettes(imagettes : List<Imagette>) : void
+        +setOnImageSelected(handler : Consumer<File>) : void
+        +setOnNoiseChanged(handler : Consumer<Double>) : void
+        +setOnSaveRequested(handler : Consumer<File>) : void
+        +setOnCutRequested(handler : Runnable) : void
+        +enableSave(enabled : boolean) : void
+        +enableCut(enabled : boolean) : void
+        +enableDenoise(enabled : boolean) : void
+        +showError(message : String) : void
+        +lancerModeGlobal() : void
+        +lancerModeLocal() : void
+        +showQualityReport(report : String) : void
+        +getDenoisedImage() : BufferedImage
+
+    }
+
+    Patch *-- Pixel
+    Photo *-- Pixel
+    Vector *-- Pixel
+    DenoisingController --> Pixel 
+    Bruit ..> Pixel
+    QualiteImage ..> Pixel
+    Convert ..> Pixel
+    MainView ..> Patch
+    ExtracteurPatch ..> Patch
+
+    ACP ..> ACPResult
+    ReconstructionService ..> Vector
+    VecteurPatch *-- Vector
+    DecoupeImage ..> Imagette
+    DenoisingController *-- MainView
+    DenoisingController *-- Imagette
+    DenoisingController *-- VecteurPatch
+    DenoisingController o-- DenoisingController::SeuillageChoice
+    DenoisingController ..> Imagette
+    DenoisingController --> ACPResult
+    DenoisingController ..> Patch
+    DenoisingController ..> Convert
+    DenoisingController ..> Reconstruction
+    DenoisingController ..> ReconstructionService
+    DenoisingController ..> Seuillage
+    DenoisingController ..> QualiteImage
+    DenoisingController ..> Proj
+    DenoisingController ..> ExtracteurPatch
+    DenoisingController ..> EstimationBruit
+    DenoisingController ..> DecoupeImage
+    DenoisingController ..> Bruit
+
+
+    MainApp --|> Application
+    MainApp ..> MainView
+
+
+
+
+
+
+
+
+
+
+
+
+}
+@enduml
