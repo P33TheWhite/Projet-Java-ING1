@@ -520,6 +520,7 @@ public class DenoisingController {
      * Compare la qualité entre l'image originale et l'image débruitée
      */
     private void comparerQualiteImages() {
+    	String rapportQualite = new String();
         if (view.getDenoisedImage() == null || imageOriginale == null) {
             view.showError("Impossible de comparer la qualité - aucune image débruitée disponible");
             return;
@@ -528,8 +529,13 @@ public class DenoisingController {
         Pixel[][] pixelsOriginaux = convertirEnMatricePixels(imageOriginale);
         Pixel[][] pixelsDebruites = convertirEnMatricePixels(view.getDenoisedImage());
         
-        String rapportQualite = QualiteImage.evaluerQualiteImage(pixelsOriginaux, pixelsDebruites);
+        if (view.getNoiseLevel() > 0) {
+        	rapportQualite = QualiteImage.evaluerQualiteImage(pixelsOriginaux, pixelsDebruites);
+        } else {
+            rapportQualite = QualiteImage.interpretationNR_IQA(pixelsDebruites);
+        }
         view.showQualityReport(rapportQualite);
+
     }
 
     /**
