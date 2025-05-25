@@ -1,0 +1,52 @@
+@startuml
+actor Utilisateur
+
+package "Application Java de Débruitage d'Image" {
+
+  usecase "Sélectionner la méthode (globale ou locale)" as UC1
+  usecase "Uploader une image" as UC2
+  usecase "Ajouter du bruit à l'image" as UC3
+
+  usecase "Débruiter l'image" as UC4
+
+  usecase "Extraire les patchs (image ou imagettes)" as UC5
+  usecase "Découper en imagettes" as UC6
+
+  usecase "Estimer ou récupérer le bruit" as UC7
+  usecase "Appliquer ACP" as UC8
+  usecase "Choisir type de seuillage" as UC9
+  usecase "Appliquer le seuillage" as UC10
+  usecase "Choisir méthode de calcul du seuil" as UC11
+  usecase "Calculer le seuil" as UC12
+  usecase "Reconstruire l'image débruitée" as UC13
+
+  usecase "Afficher les images (originale, bruitée, débruitée)" as UC14
+  usecase "Afficher les métriques de qualité (PSNR, MSE)" as UC15
+  usecase "Afficher l'évaluation qualitative" as UC16
+}
+
+' Relations de l'utilisateur
+Utilisateur --> UC1
+Utilisateur --> UC2
+Utilisateur --> UC3
+Utilisateur --> UC4
+Utilisateur --> UC9
+Utilisateur --> UC11
+Utilisateur --> UC14
+
+' Logique de débruitage
+UC1 --> UC5
+UC1 --> UC6 : <<extend>>
+UC6 --> UC5 : <<include>>
+
+UC4 --> UC7 : <<include>>
+UC4 --> UC8 : <<include>>
+UC4 --> UC10 : <<include>>
+UC4 --> UC12 : <<include>>
+UC4 --> UC13 : <<include>>
+UC4 --> UC15 : <<include>>
+
+UC10 --> UC13
+UC12 --> UC10
+UC15 --> UC16
+
