@@ -16,6 +16,13 @@ else
 endif
 
 :Cliquer sur le bouton 'Débruiter';
+
+if (Bruit ajouté à l'image ?) then (oui)
+  :Récupérer le bruit ajouté;
+else (non)
+  :Estimer le bruit avec une fonction;
+endif
+
 :Appliquer l'ACP en backend;
 
 :Choisir le type de seuillage;
