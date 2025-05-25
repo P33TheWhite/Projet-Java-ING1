@@ -1,0 +1,42 @@
+@startuml
+start
+
+:Afficher l'interface de sélection de la méthode;
+if (Méthode sélectionnée == "Globale") then (oui)
+  :Afficher l'interface globale;
+  :Uploader une image;
+  :Ajouter du bruit;
+  :Extraire les patchs de l'image entière;
+else
+  :Afficher l'interface locale;
+  :Uploader une image;
+  :Ajouter du bruit;
+  :Découper l'image en imagettes;
+  :Extraire les patchs des imagettes;
+endif
+
+:Cliquer sur le bouton 'Débruiter';
+:Appliquer l'ACP en backend;
+
+:Choisir le type de seuillage;
+if (Seuillage == "Dur") then (oui)
+  :Appliquer le seuillage dur;
+else
+  :Appliquer le seuillage doux;
+endif
+
+:Choisir la méthode de calcul du seuil;
+if (Méthode == "VisuShrink") then (oui)
+  :Calculer le seuil avec VisuShrink;
+else
+  :Calculer le seuil avec la méthode bayésienne;
+endif
+
+:Reconstruire l'image débruitée;
+:Afficher l'image originale, bruitée et débruitée;
+:Afficher les métriques de qualité (PSNR, MSE);
+
+:Afficher l'évaluation de la qualité (mauvaise, moyenne, bonne, excellente);
+
+stop
+@enduml
