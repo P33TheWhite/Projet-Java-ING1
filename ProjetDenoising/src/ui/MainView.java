@@ -1,5 +1,6 @@
 package ui;
 
+import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -9,6 +10,8 @@ import javafx.stage.Stage;
 import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
@@ -50,22 +53,120 @@ public class MainView {
     private final Button denoiseButton = new Button("Débruiter l'image");
     private Runnable onDenoiseRequested;
     private final TextArea qualityReportArea = new TextArea();
-    
+    private final ProgressIndicator loadingIndicator = new ProgressIndicator();
+    private final ToggleButton themeToggle = new ToggleButton("🌙");
+    private boolean darkMode = false;
 
-    /**
-     * Constructeur de la vue principale
-     * @param stage La fenêtre principale de l'application
-     */
     public MainView(Stage stage) {
         this.stage = stage;
         setupUI();
+        setupTheme();
     }
 
-    /**
-     * Initialise l'interface utilisateur et configure les composants
-     */
     private void setupUI() {
         stage.setTitle("Débruitage d'images par ACP");
+
+        // Style CSS de base
+        String css = """
+            .root {
+                -fx-font-family: 'Segoe UI', Arial;
+                -fx-base: #ececec;
+            }
+            
+            .dark-theme {
+                -fx-base: #2b2b2b;
+                -fx-background: #333333;
+                -fx-control-inner-background: #3c3c3c;
+                -fx-text-fill: #f4f4f4;
+            }
+            
+            .progress-bar {
+			    -fx-accent: #3498db; /* Blue color */
+			    -fx-background-color: #e0e0e0;
+			    -fx-border-color: #bdbdbd;
+			    -fx-border-radius: 3px;
+			    -fx-padding: 2px;
+			}
+			
+			.progress-bar .track {
+			    -fx-background-color: transparent;
+			}
+			
+			.progress-bar .bar {
+			    -fx-background-color: linear-gradient(to right, #3498db, #2980b9); /* Gradient blue */
+			    -fx-background-insets: 0;
+			    -fx-background-radius: 2px;
+			}
+
+            
+            .progress-bar .track {
+                -fx-background-color: transparent;
+            }
+            
+            .progress-bar .bar {
+                -fx-background-color: linear-gradient(to right, #4CAF50, #8BC34A);
+                -fx-background-insets: 0;
+                -fx-background-radius: 2px;
+            }
+            
+            .button {
+                -fx-background-radius: 4px;
+                -fx-padding: 6px 12px;
+                -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 1);
+            }
+            
+            .button:hover {
+                -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 8, 0, 0, 2);
+            }
+            
+            .text-field, .combo-box, .text-area, .scroll-pane {
+                -fx-background-radius: 4px;
+                -fx-border-radius: 4px;
+            }
+            
+            .label-title {
+                -fx-font-size: 14px;
+                -fx-font-weight: bold;
+                -fx-padding: 0 0 5px 0;
+            }
+            
+            .error-label {
+                -fx-text-fill: #ff4444;
+                -fx-font-weight: bold;
+            }
+            
+            .image-view-container {
+                -fx-border-color: #bdbdbd;
+                -fx-border-radius: 4px;
+                -fx-background-color: #f5f5f5;
+                -fx-padding: 5px;
+            }
+            
+            .dark-theme .image-view-container {
+                -fx-background-color: #3c3c3c;
+                -fx-border-color: #555555;
+            }
+            .loading-indicator {
+			    -fx-progress-color: #2196F3;
+			    -fx-alignment: CENTER;
+			}
+
+        """;        
+
+        themeToggle.setStyle("-fx-font-size: 16px;");
+
+        themeToggle.setSelected(darkMode);
+
+
+        themeToggle.setText(darkMode ? "☀️" : "\u263D"); // ☀️ or ☽
+
+        themeToggle.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            darkMode = newVal;
+            applyTheme();
+            themeToggle.setText(newVal ? "☀️" : "\u263D");
+        });
+
+
 
         Button selectImage = new Button("Choisir une image");
         selectImage.setOnAction(e -> {
@@ -126,20 +227,52 @@ public class MainView {
             }
         });
         
-        denoisedView.setFitWidth(300);
-        denoisedView.setFitHeight(300);
-        denoisedView.setPreserveRatio(true);
-        denoisedView.setSmooth(true);
+        loadingIndicator.setVisible(false);
+        loadingIndicator.getStyleClass().add("loading-indicator");
+
+
         
-        originalView.setFitWidth(300);
+        // Configuration des ImageView avec style
+        VBox originalContainer = new VBox(5, new Label("Originale"));
+        originalContainer.getStyleClass().add("image-view-container");
+        originalContainer.getChildren().add(originalView);
+        originalContainer.setAlignment(Pos.TOP_CENTER);
+        originalContainer.setPrefWidth(400);
+
+        VBox noisyContainer = new VBox(5, new Label("Bruitée"));
+        noisyContainer.getStyleClass().add("image-view-container");
+        noisyContainer.getChildren().add(noisyView);
+        noisyContainer.setAlignment(Pos.TOP_CENTER);
+        noisyContainer.setPrefWidth(400);
+
+        StackPane denoisedStack = new StackPane(denoisedView, loadingIndicator);
+        denoisedStack.setPrefSize(400, 300);
+        StackPane.setAlignment(loadingIndicator, Pos.CENTER);
+        StackPane.setAlignment(denoisedView, Pos.TOP_CENTER);  // Align image top-left instead of center
+
+
+        VBox.setVgrow(denoisedStack, Priority.NEVER);
+
+        VBox denoisedContainer = new VBox(5, new Label("Débruitée"), denoisedStack);
+        denoisedContainer.getStyleClass().add("image-view-container");
+        denoisedContainer.setAlignment(Pos.TOP_CENTER);
+        denoisedContainer.setPrefWidth(400);
+
+        originalView.setFitWidth(400);
         originalView.setFitHeight(300);
         originalView.setPreserveRatio(true);
         originalView.setSmooth(true);
 
-        noisyView.setFitWidth(300);
+        noisyView.setFitWidth(400);
         noisyView.setFitHeight(300);
         noisyView.setPreserveRatio(true);
         noisyView.setSmooth(true);
+
+        denoisedView.setFitWidth(400);
+        denoisedView.setFitHeight(300);
+        denoisedView.setPreserveRatio(true);
+        denoisedView.setSmooth(true);
+
 
         imagettesPane.setHgap(10);
         imagettesPane.setVgap(10);
@@ -149,7 +282,6 @@ public class MainView {
         imagettesScrollPane.setContent(imagettesPane);
         imagettesScrollPane.setFitToWidth(true);
         imagettesScrollPane.setPrefViewportHeight(200);
-        imagettesScrollPane.setStyle("-fx-background: white; -fx-border-color: lightgray;");
 
         imagetteBlock = new VBox(5, new Label("Imagettes générées:"), imagettesScrollPane);
 
@@ -172,7 +304,6 @@ public class MainView {
         patchesScrollPane.setContent(patchesPane);
         patchesScrollPane.setFitToWidth(true);
         patchesScrollPane.setPrefViewportHeight(200);
-        patchesScrollPane.setStyle("-fx-background: white; -fx-border-color: lightgray;");
 
         decoupeControls = new HBox(10,
             new Label("Nombre de divisions (n):"), divisionsField,
@@ -181,14 +312,17 @@ public class MainView {
         decoupeControls.setAlignment(Pos.CENTER_LEFT);
 
         HBox imageContainer = new HBox(10, 
-                new VBox(5, new Label("Originale"), originalView),
-                new VBox(5, new Label("Bruitée"), noisyView),
-                new VBox(5, new Label("Débruitée"), denoisedView)
-            );
+                originalContainer,
+                noisyContainer,
+                denoisedContainer
+        );
         imageContainer.setAlignment(Pos.CENTER);
 
-        VBox mainContent = new VBox(10,
-            selectImage,
+        HBox topControls = new HBox(10, selectImage, themeToggle);
+        topControls.setAlignment(Pos.CENTER_LEFT);
+
+        VBox mainContent = new VBox(15,
+            topControls,
             new Label("Niveau de bruit (0-30):"),
             noiseSlider,
             new HBox(10, saveButton),
@@ -203,24 +337,62 @@ public class MainView {
             new Label("Rapport de qualité:"),
             qualityReportArea
         );
-        mainContent.setPadding(new Insets(15));
+        mainContent.setPadding(new Insets(20));
+        mainContent.setStyle("-fx-background-color: -fx-base;");
 
+        errorLabel.getStyleClass().add("error-label");
+        
         ScrollPane mainScrollPane = new ScrollPane(mainContent);
         mainScrollPane.setFitToWidth(true);
         mainScrollPane.setFitToHeight(true);
         mainScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         mainScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
 
-        errorLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
-        stage.setScene(new Scene(mainScrollPane, 1000, 800));
+        Scene scene = new Scene(mainScrollPane, 1200, 850);
+        scene.getStylesheets().add("data:text/css," + css);
+        stage.setScene(scene);
         stage.setMinWidth(1000);
         stage.setMinHeight(800);
+        
         extractPatchesButton.setOnAction(e -> {
             if (onExtractPatchesRequested != null) {
                 onExtractPatchesRequested.run();
             }
         });
     }
+
+    private void setupTheme() {
+        applyTheme();
+    }
+
+    private void applyTheme() {
+        if (darkMode) {
+            stage.getScene().getRoot().getStyleClass().add("dark-theme");
+        } else {
+            stage.getScene().getRoot().getStyleClass().remove("dark-theme");
+        }
+    }
+
+    public void startProgress() {
+        System.out.println("Starting progress...");
+        Platform.runLater(() -> {
+            loadingIndicator.setVisible(true);
+            denoisedView.setFitWidth(400); // Set initial width
+            denoisedView.setFitHeight(300); // Set initial height
+        });
+    }
+
+    public void completeProgress() {
+        System.out.println("Completing progress...");
+        Platform.runLater(() -> {
+            loadingIndicator.setVisible(false);
+        });
+    }
+
+
+
+
+
 
     /**
      * Définit les tailles de patch possibles en fonction des dimensions de l'image
@@ -316,7 +488,14 @@ public class MainView {
     public void setOriginalImage(BufferedImage image) { originalView.setImage(SwingFXUtils.toFXImage(image, null)); }
     public void setNoisyImage(BufferedImage image) { noisyView.setImage(SwingFXUtils.toFXImage(image, null)); }
     public void setOnDenoiseRequested(Runnable handler) { this.onDenoiseRequested = handler; }
-    public void setDenoisedImage(BufferedImage image) { denoisedView.setImage(SwingFXUtils.toFXImage(image, null)); }
+    public void setDenoisedImage(BufferedImage image) {
+        if (image == null) {
+            denoisedView.setImage(null);
+        } else {
+            denoisedView.setImage(SwingFXUtils.toFXImage(image, null));
+        }
+    }
+
 
     /**
      * Affiche les imagettes générées

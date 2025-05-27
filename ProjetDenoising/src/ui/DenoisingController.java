@@ -2,18 +2,21 @@ package ui;
 
 import model.*;
 import service.*;
+import javafx.application.Platform;
 import javafx.scene.control.ChoiceDialog;
 
 import javax.imageio.ImageIO;
+import javax.swing.SwingWorker;
+
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class DenoisingController {
-    // Constantes optimisées
     private static final double SEUIL_ENERGIE = 0.98;
     private static final double FACTEUR_SEUIL_GLOBAL = 0.6745;
     private static final double FACTEUR_SEUIL_LOCAL = 0.8094;
@@ -28,22 +31,15 @@ public class DenoisingController {
     private List<Imagette> currentImagettes;
     private boolean isModeGlobal = false;
     private VecteurPatch vecteurPatch;
-    private double[][][] canauxACP; // [0]=R, [1]=G, [2]=B
+    private double[][][] canauxACP;
     private ACPResult[] acpResults;
     private double sigmaBruit;
 
-    /**
-     * Constructeur du contrôleur de débruitage
-     * @param view La vue principale de l'application
-     */
     public DenoisingController(MainView view) {
         this.view = view;
         initialiser();
     }
 
-    /**
-     * Initialise les gestionnaires d'événements de la vue
-     */
     private void initialiser() {
         view.setOnImageSelected(this::gererSelectionImage);
         view.setOnNoiseChanged(this::mettreAJourImageBruitee);
@@ -53,10 +49,6 @@ public class DenoisingController {
         view.setOnDenoiseRequested(this::effectuerDebruitage);
     }
 
-    /**
-     * Définit le mode de traitement (global ou local)
-     * @param modeGlobal true pour le mode global, false pour le mode local
-     */
     public void setModeGlobal(boolean modeGlobal) {
         this.isModeGlobal = modeGlobal;
         if (modeGlobal) {
@@ -66,10 +58,6 @@ public class DenoisingController {
         }
     }
 
-    /**
-     * Gère la sélection d'une image par l'utilisateur
-     * @param fichier Le fichier image sélectionné
-     */
     private void gererSelectionImage(File fichier) {
         try {
             BufferedImage imageChargee = ImageIO.read(fichier);
@@ -86,6 +74,14 @@ public class DenoisingController {
             } else {
                 imageOriginale = imageChargee;
                 view.showError("");
+            }
+
+            // Supprime l'image débruitée si elle existe
+            if (imageDebruitee != null) {
+            	Platform.runLater(() -> {
+            	    imageDebruitee = null;
+            	    view.setDenoisedImage(null);
+            	});  // Actualise la vue pour enlever l'image débruitée
             }
 
             Photo photo = new Photo(imageOriginale, imageOriginale.getWidth(), imageOriginale.getHeight());
@@ -105,105 +101,162 @@ public class DenoisingController {
         }
     }
 
-    /**
-     * Met à jour l'image bruitée en fonction du niveau de bruit sélectionné
-     * @param niveauBruit Le niveau de bruit à appliquer
-     */
+
     private void mettreAJourImageBruitee(double niveauBruit) {
         if (matriceOriginale != null) {
-            Pixel[][] matriceBruitee = Bruit.noising(matriceOriginale, niveauBruit);
-            imageBruitee = Convert.convertirMatriceEnImage(matriceBruitee);
-            view.setNoisyImage(imageBruitee);
+            new Thread(() -> {
+                try {
+                    Pixel[][] matriceBruitee = Bruit.noising(matriceOriginale, niveauBruit);
+                    Platform.runLater(() -> {
+                        imageBruitee = Convert.convertirMatriceEnImage(matriceBruitee);
+                        view.setNoisyImage(imageBruitee);
+                    });
+                } catch (Exception e) {
+                    Platform.runLater(() -> {
+                        view.showError("Erreur lors de l'application du bruit");
+                    });
+                }
+            }).start();
         }
     }
 
-    /**
-     * Sauvegarde l'image bruitée dans un fichier
-     * @param fichierSauvegarde Le fichier de destination
-     */
     private void sauvegarderImageBruitee(File fichierSauvegarde) {
         if (imageBruitee != null && fichierSauvegarde != null) {
-            try {
-                ImageIO.write(imageBruitee, "png", fichierSauvegarde);
-                view.showError("Image sauvegardée avec succès");
-            } catch (IOException e) {
-                view.showError("Erreur lors de la sauvegarde");
-                e.printStackTrace();
-            }
+            new Thread(() -> {
+                try {
+                    ImageIO.write(imageBruitee, "png", fichierSauvegarde);
+                    Platform.runLater(() -> {
+                        view.showError("Image sauvegardée avec succès");
+                    });
+                } catch (IOException e) {
+                    Platform.runLater(() -> {
+                        view.showError("Erreur lors de la sauvegarde");
+                    });
+                    e.printStackTrace();
+                }
+            }).start();
         }
     }
 
-    /**
-     * Extrait les patchs de l'image (en mode global ou local)
-     */
     private void extrairePatchs() {
         int taillePatch = view.getPatchSize();
         int pas = view.getPatchStep();
 
-        if (isModeGlobal) {
-            if (imageBruitee == null) {
-                view.showError("Veuillez d'abord charger une image et appliquer du bruit");
-                return;
+        SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                try {
+                    if (isModeGlobal) {
+                        if (imageBruitee == null) {
+                            throw new IllegalStateException("Veuillez d'abord charger une image et appliquer du bruit");
+                        }
+
+                        ArrayList<ArrayList<Patch>> patches = ExtracteurPatch.extractPatchs(imageBruitee, pas, taillePatch);
+                        List<ArrayList<ArrayList<Patch>>> wrapper = new ArrayList<>();
+                        wrapper.add(patches);
+
+                        Platform.runLater(() -> {
+                            view.displayPatches(wrapper);
+                        });
+
+                        vecteurPatch = new VecteurPatch();
+                        vecteurPatch.ajouterDepuisListe(patches);
+                        vecteurPatch.afficherExtraits(10);
+
+                        canauxACP = new double[3][][];
+                        canauxACP[0] = vecteurPatch.getCanal("R");
+                        canauxACP[1] = vecteurPatch.getCanal("G");
+                        canauxACP[2] = vecteurPatch.getCanal("B");
+
+                        Platform.runLater(() -> {
+                            view.enableDenoise(true);
+                        });
+                    } else {
+                        if (currentImagettes == null || currentImagettes.isEmpty()) {
+                            throw new IllegalStateException("Veuillez d'abord découper l'image en imagettes");
+                        }
+
+                        List<ArrayList<ArrayList<Patch>>> allPatches = new ArrayList<>();
+                        
+                        for (int i = 0; i < currentImagettes.size(); i++) {
+                            Imagette imagette = currentImagettes.get(i);
+                            BufferedImage img = imagette.getImage();
+                            if (img.getWidth() < taillePatch || img.getHeight() < taillePatch) {
+                                throw new IllegalStateException("La taille de patch est trop grande pour certaines imagettes");
+                            }
+
+                            ArrayList<ArrayList<Patch>> patches = ExtracteurPatch.extractPatchs(img, pas, taillePatch);
+                            allPatches.add(patches);
+                            
+                            final double progress = (double)(i + 1) / currentImagettes.size();
+                        }
+
+                        Platform.runLater(() -> {
+                            view.displayPatches(allPatches);
+                            view.enableDenoise(true);
+                        });
+                    }
+                } catch (Exception e) {
+                    Platform.runLater(() -> view.showError(e.getMessage()));
+                    throw e;
+                }
+                return null;
             }
+        };
 
-            ArrayList<ArrayList<Patch>> patches = ExtracteurPatch.extractPatchs(imageBruitee, pas, taillePatch);
-            List<ArrayList<ArrayList<Patch>>> wrapper = new ArrayList<>();
-            wrapper.add(patches);
-            view.displayPatches(wrapper);
-
-            vecteurPatch = new VecteurPatch();
-            vecteurPatch.ajouterDepuisListe(patches);
-            vecteurPatch.afficherExtraits(10);
-
-            canauxACP = new double[3][][];
-            canauxACP[0] = vecteurPatch.getCanal("R");
-            canauxACP[1] = vecteurPatch.getCanal("G");
-            canauxACP[2] = vecteurPatch.getCanal("B");
-
-            view.enableDenoise(true);
-            return;
-        }
-
-        if (currentImagettes == null || currentImagettes.isEmpty()) {
-            view.showError("Veuillez d'abord découper l'image en imagettes");
-            return;
-        }
-
-        List<ArrayList<ArrayList<Patch>>> allPatches = new ArrayList<>();
-        
-        for (Imagette imagette : currentImagettes) {
-            BufferedImage img = imagette.getImage();
-            if (img.getWidth() < taillePatch || img.getHeight() < taillePatch) {
-                view.showError("La taille de patch est trop grande pour certaines imagettes");
-                return;
-            }
-
-            ArrayList<ArrayList<Patch>> patches = ExtracteurPatch.extractPatchs(img, pas, taillePatch);
-            allPatches.add(patches);
-        }
-
-        view.displayPatches(allPatches);
-        view.enableDenoise(true);
+        worker.execute();
     }
 
-    /**
-     * Effectue le débruitage de l'image selon le mode sélectionné
-     */
     private void effectuerDebruitage() {
         try {
             estimerSigmaBruit();
-            
-            if (isModeGlobal) {
-                effectuerDebruitageGlobal();
-            } else {
-                effectuerDebruitageLocal();
-            }
-            
-            comparerQualiteImages();
+            SeuillageChoice choix = demanderChoixSeuillage();
+            if (choix == null) return;
+
+
+            SwingWorker<BufferedImage, Void> worker = new SwingWorker<BufferedImage, Void>() {
+                @Override
+                protected BufferedImage doInBackground() throws Exception {
+                    try {
+                        if (isModeGlobal) {
+                            validerPreconditionsPourDebruitageGlobal();
+                            estimerSigmaBruit();
+                            traiterTousLesCanaux(choix);
+                            return imageDen();
+                        } else {
+                            validerPreconditionsPourDebruitageLocal();
+                            return traiterImagettes(choix);
+                        }
+                    } finally {
+                        
+                    }
+                }
+
+                @Override
+                protected void done() {
+                    try {
+                        imageDebruitee = get();
+                        view.setDenoisedImage(imageDebruitee);
+                        comparerQualiteImages();
+                    } catch (InterruptedException | ExecutionException e) {
+                        view.showError("Erreur lors du débruitage: " + e.getMessage());
+                        e.printStackTrace();
+                    } finally {
+                        view.completeProgress(); // Cache la barre de progression
+                    }
+                }
+            };
+
+            worker.execute();
         } catch (IllegalStateException e) {
             view.showError(e.getMessage());
         }
     }
+
+
+    
+
+
     
     /**
      * Estime le niveau de bruit sigma
@@ -266,24 +319,7 @@ public class DenoisingController {
         return valeurs.stream().mapToDouble(Double::doubleValue).toArray();
     }
 
-    /**
-     * Effectue le débruitage en mode global
-     */
-    private void effectuerDebruitageGlobal() {
-        validerPreconditionsPourDebruitageGlobal();
-        
-        SeuillageChoice choix = demanderChoixSeuillage();
-        if (choix == null) return;
-
-        estimerSigmaBruit();
-        traiterTousLesCanaux(choix);
-        
-        imageDebruitee = imageDen();
-        view.setDenoisedImage(imageDebruitee);
-        
-        afficherMessageCompletion(choix, true);
-    }
-
+    
     /**
      * Demande à l'utilisateur de choisir le type de seuillage
      * @return Le choix de seuillage ou null si annulé
@@ -302,6 +338,8 @@ public class DenoisingController {
         methodeDialog.setHeaderText("Sélectionnez comment calculer le seuil");
         Optional<String> methodeResult = methodeDialog.showAndWait();
         if (!methodeResult.isPresent()) return null;
+        view.startProgress();
+        
 
         return new SeuillageChoice(
             typeResult.get().equals("Seuillage dur"),
@@ -426,20 +464,7 @@ public class DenoisingController {
         );
     }
 
-    /**
-     * Effectue le débruitage en mode local (par imagettes)
-     */
-    private void effectuerDebruitageLocal() {
-        validerPreconditionsPourDebruitageLocal();
-        
-        SeuillageChoice choix = demanderChoixSeuillage();
-        if (choix == null) return;
-
-        imageDebruitee = traiterImagettes(choix);
-        view.setDenoisedImage(imageDebruitee);
-        
-        afficherMessageCompletion(choix, false);
-    }
+    
 
     /**
      * Traite toutes les imagettes pour le débruitage local
@@ -577,18 +602,7 @@ public class DenoisingController {
         }
     }
 
-    /**
-     * Affiche un message de complétion du débruitage
-     * @param choix Le choix de seuillage
-     * @param isGlobal Si le mode était global ou local
-     */
-    private void afficherMessageCompletion(SeuillageChoice choix, boolean isGlobal) {
-        String methode = isGlobal ? "Global" : "Local";
-        String nomStrategie = choix.estDur ? "dur" : "doux";
-        String methodeSeuil = choix.estUniversel ? "universel (VisuShrink)" : "bayésien (BayesShrink)";
-        view.showError("Débruitage " + methode.toLowerCase() + " terminé (seuillage " + nomStrategie + 
-                      " avec méthode " + methodeSeuil + ")");
-    }
+    
 
     /**
      * Découpe l'image en imagettes selon le nombre de divisions spécifié
